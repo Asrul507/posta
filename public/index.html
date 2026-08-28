@@ -527,13 +527,13 @@
       countLabel.innerText = `Total: ${total} Item`;
     }
 
-    // =========================================================================
-    // 3. KAMERA SCANNER CONTROLLER (CONTINUOUS SCAN)
+        // =========================================================================
+    // 3. KAMERA SCANNER CONTROLLER (OPTIMASI KHUSUS BARCODE 1D / EAN-13)
     // =========================================================================
     function openCameraScanner(target = 'CASHIER') {
       currentScanTarget = target;
       document.getElementById('scanner-title').innerText = target === 'CASHIER' ? 'Mode Scan Beruntun (Kasir)' : 'Mode Scan Beruntun (Barang Masuk PO)';
-      document.getElementById('scanner-last-item').innerText = 'Arahkan kamera ke barcode produk...';
+      document.getElementById('scanner-last-item').innerText = 'Arahkan barcode ke kotak kamera...';
       
       const total = currentScanTarget === 'PO' ? poItems.reduce((a, b) => a + b.qty, 0) : cart.reduce((a, b) => a + b.qty, 0);
       document.getElementById('scanner-item-count').innerText = `Total: ${total} Item`;
@@ -541,13 +541,31 @@
       document.getElementById('camera-modal').classList.remove('hidden');
 
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("camera-reader");
+        // Daftarkan format barcode 1D ritel umum (EAN-13, EAN-8, CODE-128, UPC-A, QR-CODE)
+        html5QrCode = new Html5Qrcode("camera-reader", {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.QR_CODE
+          ],
+          verbose: false
+        });
       }
 
+      // Konfigurasi HD & Area Scan Horizontal Persegi Panjang
       const config = { 
-        fps: 20, 
-        qrbox: { width: 260, height: 160 },
-        aspectRatio: 1.0
+        fps: 25, 
+        qrbox: { width: 300, height: 140 }, // Kotak horizontal memanjang sesuai bentuk barcode 1D
+        aspectRatio: 1.0,
+        videoConstraints: {
+          facingMode: { ideal: "environment" },
+          focusMode: { ideal: "continuous" },
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
+        }
       };
 
       html5QrCode.start(
@@ -556,21 +574,15 @@
         (decodedText) => {
           processBarcodeScanned(decodedText, 'CAMERA');
         },
-        (errorMessage) => {}
+        (errorMessage) => {
+          // Frame lewat tanpa barcode
+        }
       ).catch(err => {
         alert("Gagal mengakses kamera. Pastikan izin kamera telah diizinkan.");
         closeCameraScanner();
       });
     }
 
-    function closeCameraScanner() {
-      document.getElementById('camera-modal').classList.add('hidden');
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-        }).catch(err => console.error(err));
-      }
-    }
 
     // =========================================================================
     // 4. DATA MASTER & KASIR
