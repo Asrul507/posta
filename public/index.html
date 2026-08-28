@@ -3,17 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Posta POS - Kasir, Barcode Scanner & PO</title>
+  <title>Posta POS - Kasir, Scanner & PO</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library Scanner Barcode Kamera HTML5 Ringan -->
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- Library Scanner Barcode HTML5 Stabil -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    #camera-reader {
+      width: 100% !important;
+      height: 100% !important;
+      position: relative;
+    }
     #camera-reader video {
       border-radius: 0.75rem;
-      object-fit: cover;
+      object-fit: cover !important;
       width: 100% !important;
+      height: 100% !important;
     }
   </style>
 </head>
@@ -29,10 +35,10 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <!-- Tombol Buka Kamera Scanner Kasir -->
+      <!-- Tombol Scan Kasir -->
       <button onclick="openCameraScanner('CASHIER')" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span>Scan Kamera</span>
+        <span>Scan Kasir</span>
       </button>
 
       <!-- Tombol Input PO -->
@@ -44,14 +50,14 @@
 
   <!-- CONTAINER UTAMA KASIR -->
   <div class="flex-1 flex overflow-hidden">
-    <!-- KATALOG -->
+    <!-- KATALOG PRODUK -->
     <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
       <div class="p-3 bg-white border-b border-slate-200 flex gap-2 shrink-0 items-center">
         <div class="relative flex-1">
           <input 
             id="search-input"
             type="text" 
-            placeholder="Ketik / Scan barcode barang..." 
+            placeholder="Cari nama barang atau barcode..." 
             class="w-full pl-9 pr-3 py-2 text-sm bg-slate-100 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
           />
           <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -129,33 +135,90 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL: SCANNER KAMERA (SCAN BARCODE VIA HP / WEBCAM)                      -->
+  <!-- 1. POP-UP MODAL SCANNER KAMERA (Z-INDEX TERTINGGI Z-[100])                -->
   <!-- ========================================================================= -->
-  <div id="camera-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3">
-      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-          <span>📷</span> Scan Barcode Kamera
+  <div id="camera-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3 relative">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <h3 id="scanner-title" class="font-bold text-slate-800 text-sm flex items-center gap-2">
+          <span>📷</span> Scan Barcode Produk
         </h3>
-        <button onclick="closeCameraScanner()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+        <button onclick="closeCameraScanner()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 text-lg font-bold">&times;</button>
       </div>
 
       <!-- Area Viewport Kamera -->
-      <div id="camera-reader" class="w-full h-64 bg-slate-950 rounded-xl overflow-hidden relative flex items-center justify-center">
-        <span class="text-slate-500 text-xs animate-pulse">Menghubungkan kamera...</span>
+      <div class="relative w-full h-64 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-slate-200">
+        <div id="camera-reader"></div>
+        <!-- Panduan Garis Merah Scanner -->
+        <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div class="w-[85%] h-28 border-2 border-emerald-400 rounded-lg relative">
+            <div class="w-full h-0.5 bg-rose-500 absolute top-1/2 -translate-y-1/2 animate-pulse shadow-sm"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="text-center">
-        <p class="text-[11px] text-slate-500">Arahkan barcode produk ke dalam kotak kamera.</p>
-        <button onclick="closeCameraScanner()" class="mt-3 w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs">
-          Tutup Kamera
+      <div class="text-center space-y-2">
+        <p class="text-[11px] text-slate-500">Posisikan garis merah melintang di tengah barcode.</p>
+        <button onclick="closeCameraScanner()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+          Tutup Scanner
         </button>
       </div>
     </div>
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL: BATCH PURCHASE ORDER (BARANG MASUK)                                -->
+  <!-- 2. POP-UP INPUT QUANTITY (SETELAH SCAN / KLIK BARANG)                     -->
+  <!-- ========================================================================= -->
+  <div id="qty-input-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[90] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 id="qty-modal-title" class="font-bold text-slate-800 text-sm">Input Jumlah Item</h3>
+        <button onclick="closeQtyModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <!-- Info Produk Terpilih -->
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+        <h4 id="qty-product-name" class="font-bold text-sm text-slate-900 leading-snug"></h4>
+        <div class="flex justify-between items-center text-xs pt-1">
+          <span id="qty-product-price" class="text-emerald-600 font-extrabold"></span>
+          <span id="qty-product-stock" class="text-slate-500 font-medium"></span>
+        </div>
+      </div>
+
+      <!-- Input Jumlah Qty -->
+      <div class="space-y-1.5">
+        <label class="text-xs font-bold text-slate-700">Jumlah (Qty)</label>
+        <div class="flex items-center gap-2">
+          <button onclick="adjustModalQtyValue(-1)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl font-black text-slate-700 text-lg">-</button>
+          <input 
+            id="modal-qty-number" 
+            type="number" 
+            min="1" 
+            value="1" 
+            onkeydown="if(event.key === 'Enter') confirmAddQty()"
+            class="flex-1 text-center font-black text-lg p-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          />
+          <button onclick="adjustModalQtyValue(1)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-xl font-black text-slate-700 text-lg">+</button>
+        </div>
+      </div>
+
+      <!-- Input Harga Beli (Khusus Mode PO) -->
+      <div id="qty-modal-cost-container" class="space-y-1 hidden">
+        <label class="text-[10px] font-bold text-slate-500 uppercase">Harga Beli / Modal Satuan (Rp)</label>
+        <input id="modal-cost-number" type="number" class="w-full text-xs font-bold p-2 border border-slate-300 rounded-lg focus:outline-none" />
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button onclick="closeQtyModal()" class="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 font-semibold rounded-xl text-xs text-slate-700">Batal</button>
+        <button onclick="confirmAddQty()" id="btn-confirm-qty" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow">
+          Tambahkan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 3. MODAL: BATCH PURCHASE ORDER (BARANG MASUK) Z-[50]                      -->
   <!-- ========================================================================= -->
   <div id="po-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
     <div class="bg-white rounded-2xl max-w-2xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -193,15 +256,16 @@
           <input 
             id="po-search-input" 
             type="text" 
-            placeholder="Ketik / Scan barcode barang lalu tekan Enter..." 
+            placeholder="Ketik / Scan barcode barang..." 
             onkeydown="if(event.key === 'Enter') handlePOSearch()"
             class="flex-1 text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
           />
-          <button onclick="openCameraScanner('PO')" class="px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1">
-            📷 Kamera
+          <button onclick="openCameraScanner('PO')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span>Scan Kamera PO</span>
           </button>
           <button onclick="handlePOSearch()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
-            + Tambah
+            + Cari
           </button>
         </div>
       </div>
@@ -241,14 +305,16 @@
     </div>
   </div>
 
-  <!-- MODAL: TAMBAH ITEM BARU JIKA BARCODE TIDAK DITEMUKAN -->
-  <div id="new-item-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+  <!-- ========================================================================= -->
+  <!-- 4. MODAL: TAMBAH ITEM BARU JIKA BARCODE TIDAK DITEMUKAN                  -->
+  <!-- ========================================================================= -->
+  <div id="new-item-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[95] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-3.5">
       <div class="flex items-center justify-between border-b border-slate-100 pb-2">
         <h3 class="font-bold text-slate-800 text-sm">✨ Barcode Baru Terdeteksi</h3>
-        <button onclick="closeNewItemModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        <button onclick="closeNewItemModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
       </div>
-      <p class="text-[11px] text-slate-500">Barang ini belum terdaftar di sistem. Lengkapi detail untuk langsung dimasukkan ke PO & master data:</p>
+      <p class="text-[11px] text-slate-500">Barang ini belum terdaftar di sistem. Lengkapi data untuk masuk ke PO & database:</p>
 
       <div class="space-y-2.5">
         <div>
@@ -275,7 +341,7 @@
             <input id="new-prod-unit" type="text" value="pcs" class="w-full text-xs p-2 border border-slate-300 rounded-lg focus:outline-none" />
           </div>
           <div>
-            <label class="text-[10px] font-bold text-slate-500 uppercase">Qty Masuk</label>
+            <label class="text-[10px] font-bold text-slate-500 uppercase">Qty Masuk PO</label>
             <input id="new-prod-qty" type="number" min="1" value="1" class="w-full text-xs font-bold p-2 border border-slate-300 rounded-lg focus:outline-none" />
           </div>
         </div>
@@ -288,7 +354,9 @@
     </div>
   </div>
 
-  <!-- MODAL: CHECKOUT & PEMBAYARAN KASIR -->
+  <!-- ========================================================================= -->
+  <!-- 5. MODAL: CHECKOUT & PEMBAYARAN KASIR                                     -->
+  <!-- ========================================================================= -->
   <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -344,17 +412,43 @@
     let selectedCategory = 'ALL';
     let html5QrCode = null;
     let currentScanTarget = 'CASHIER'; // 'CASHIER' atau 'PO'
-    let barcodeBuffer = '';
-    let lastKeyTime = Date.now();
+    let selectedProductForQty = null;
     const tenantId = 'toko_demo_01';
 
     const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
     // =========================================================================
+    // AUDIO BEEP
+    // =========================================================================
+    function playBeepSound(type = 'success') {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'success') {
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.12);
+        } else {
+          osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.28);
+        }
+      } catch (e) {}
+    }
+
+    // =========================================================================
     // 1. HARDWARE SCANNER LISTENER (USB / BLUETOOTH SCANNER)
     // =========================================================================
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+
     window.addEventListener('keydown', (e) => {
-      // Abaikan jika fokus sedang berada di input form modal pembayaran / PO metadata
       const activeTag = document.activeElement ? document.activeElement.tagName : '';
       const activeId = document.activeElement ? document.activeElement.id : '';
       if (activeTag === 'INPUT' && activeId !== 'search-input' && activeId !== 'po-search-input') {
@@ -362,9 +456,7 @@
       }
 
       const currentTime = Date.now();
-      if (currentTime - lastKeyTime > 100) {
-        barcodeBuffer = '';
-      }
+      if (currentTime - lastKeyTime > 120) barcodeBuffer = '';
       lastKeyTime = currentTime;
 
       if (e.key === 'Enter') {
@@ -378,70 +470,199 @@
       }
     });
 
-    // Proses Barcode Hasil Scan (Hardware Scanner atau Kamera)
+    // =========================================================================
+    // 2. SCAN RESULT HANDLER -> TUTUP KAMERA & BUKA POP-UP QTY
+    // =========================================================================
     function processBarcodeScanned(barcode) {
-      // 1. Jika Modal PO sedang terbuka, masukkan ke PO
-      const poModal = document.getElementById('po-modal');
-      if (!poModal.classList.contains('hidden')) {
-        document.getElementById('po-search-input').value = barcode;
-        handlePOSearch();
+      closeCameraScanner();
+
+      const found = products.find(p => (p.barcode && p.barcode.toLowerCase() === barcode.toLowerCase()) || p.name.toLowerCase() === barcode.toLowerCase());
+
+      if (found) {
+        playBeepSound('success');
+        openQtyModal(found, currentScanTarget);
+      } else {
+        playBeepSound('error');
+        if (currentScanTarget === 'PO') {
+          openNewItemModal(barcode);
+        } else {
+          alert(`Barcode "${barcode}" tidak ditemukan di katalog produk!`);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 3. POP-UP MODAL INPUT QUANTITY (UNTUK KASIR & PO)
+    // =========================================================================
+    function openQtyModal(product, mode = 'CASHIER') {
+      selectedProductForQty = { ...product, targetMode: mode };
+
+      document.getElementById('qty-modal-title').innerText = mode === 'CASHIER' ? '🛒 Tambah ke Transaksi Kasir' : '📦 Tambah ke Purchase Order (PO)';
+      document.getElementById('qty-product-name').innerText = product.name;
+      document.getElementById('qty-product-price').innerText = formatRupiah(product.price);
+      document.getElementById('qty-product-stock').innerText = `Stok Tersedia: ${product.stock} ${product.unit || 'pcs'}`;
+      
+      const qtyInput = document.getElementById('modal-qty-number');
+      qtyInput.value = '1';
+
+      const costContainer = document.getElementById('qty-modal-cost-container');
+      const costInput = document.getElementById('modal-cost-number');
+
+      if (mode === 'PO') {
+        costContainer.classList.remove('hidden');
+        costInput.value = product.cost_price || 0;
+      } else {
+        costContainer.classList.add('hidden');
+      }
+
+      document.getElementById('qty-input-modal').classList.remove('hidden');
+      setTimeout(() => {
+        qtyInput.focus();
+        qtyInput.select();
+      }, 150);
+    }
+
+    function closeQtyModal() {
+      document.getElementById('qty-input-modal').classList.add('hidden');
+      selectedProductForQty = null;
+    }
+
+    function adjustModalQtyValue(delta) {
+      const input = document.getElementById('modal-qty-number');
+      let val = (parseInt(input.value) || 0) + delta;
+      input.value = Math.max(1, val);
+    }
+
+    function confirmAddQty() {
+      if (!selectedProductForQty) return;
+
+      const qty = parseInt(document.getElementById('modal-qty-number').value) || 1;
+      if (qty <= 0) {
+        alert('Jumlah Qty harus lebih dari 0!');
         return;
       }
 
-      // 2. Jika di Halaman Kasir, cari produk & masukkan ke keranjang
-      const product = products.find(p => p.barcode && p.barcode.toLowerCase() === barcode.toLowerCase());
-      if (product) {
-        addToCart(product.id);
-        // Play beep sound (opsional visual efek)
-        const searchInput = document.getElementById('search-input');
-        searchInput.value = product.name;
-        setTimeout(() => searchInput.value = '', 1500);
+      if (selectedProductForQty.targetMode === 'CASHIER') {
+        if (selectedProductForQty.stock <= 0) {
+          alert('Stok produk ini kosong!');
+          return;
+        }
+
+        const existing = cart.find(c => c.id === selectedProductForQty.id);
+        const currentInCart = existing ? existing.qty : 0;
+        if (currentInCart + qty > selectedProductForQty.stock) {
+          alert(`Stok tidak mencukupi! Sisa stok hanya ${selectedProductForQty.stock} pcs.`);
+          return;
+        }
+
+        if (existing) {
+          existing.qty += qty;
+        } else {
+          cart.push({ ...selectedProductForQty, qty: qty });
+        }
+        updateCartUI();
       } else {
-        alert(`Barcode "${barcode}" tidak ditemukan di database kasir!`);
+        const costPrice = parseFloat(document.getElementById('modal-cost-number').value) || (selectedProductForQty.cost_price || 0);
+        const existingInPO = poItems.find(item => item.id === selectedProductForQty.id);
+        if (existingInPO) {
+          existingInPO.qty += qty;
+          existingInPO.cost_price = costPrice;
+        } else {
+          poItems.push({
+            id: selectedProductForQty.id,
+            name: selectedProductForQty.name,
+            barcode: selectedProductForQty.barcode,
+            cost_price: costPrice,
+            qty: qty,
+            is_new: false
+          });
+        }
+        renderPOTable();
       }
+
+      closeQtyModal();
     }
 
     // =========================================================================
-    // 2. KAMERA SCANNER (HTML5 QR / BARCODE SCANNER)
+    // 4. SCANNER KAMERA CONTROLLER (OPTIMASI BARCODE 1D RITEL & NATIVE ENGINE)
     // =========================================================================
-    function openCameraScanner(target = 'CASHIER') {
+    async function openCameraScanner(target = 'CASHIER') {
       currentScanTarget = target;
+      document.getElementById('scanner-title').innerHTML = target === 'CASHIER' 
+        ? '<span>📷</span> Scan Barcode Kasir' 
+        : '<span>📦</span> Scan Barcode PO (Barang Masuk)';
+      
       document.getElementById('camera-modal').classList.remove('hidden');
 
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("camera-reader");
+      // Hentikan dan bersihkan instance lama jika masih tersisa
+      if (html5QrCode) {
+        try {
+          if (html5QrCode.isScanning) {
+            await html5QrCode.stop();
+          }
+          await html5QrCode.clear();
+        } catch (e) {}
+        html5QrCode = null;
       }
 
-      const config = { fps: 15, qrbox: { width: 250, height: 160 } };
-
-      html5QrCode.start(
-        { facingMode: "environment" }, // Kamera belakang
-        config,
-        (decodedText) => {
-          // Sukses Scan Barcode
-          closeCameraScanner();
-          processBarcodeScanned(decodedText);
+      // Inisialisasi scanner dengan format 1D eksplisit & BarcodeDetector native engine
+      html5QrCode = new Html5Qrcode("camera-reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ],
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // Menggunakan sensor scanner native super cepat bawaan iOS/Android
         },
-        (errorMessage) => {
-          // Frame tidak mengandung barcode (abaikan)
-        }
-      ).catch(err => {
-        alert("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan di browser.");
-        closeCameraScanner();
+        verbose: false
       });
+
+      const config = { 
+        fps: 25, 
+        qrbox: { width: 280, height: 130 },
+        aspectRatio: 1.0,
+        videoConstraints: {
+          facingMode: { ideal: "environment" },
+          focusMode: { ideal: "continuous" },
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 }
+        }
+      };
+
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            processBarcodeScanned(decodedText);
+          },
+          (errorMessage) => {}
+        );
+      } catch (err) {
+        alert("Gagal mengakses kamera. Pastikan izin kamera aktif pada browser.");
+        closeCameraScanner();
+      }
     }
 
-    function closeCameraScanner() {
+    async function closeCameraScanner() {
       document.getElementById('camera-modal').classList.add('hidden');
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-        }).catch(err => console.error(err));
+      if (html5QrCode) {
+        try {
+          if (html5QrCode.isScanning) {
+            await html5QrCode.stop();
+          }
+          await html5QrCode.clear();
+        } catch (err) {}
+        html5QrCode = null;
       }
     }
 
     // =========================================================================
-    // 3. DATA MASTER & KASIR
+    // 5. MASTER PRODUK & KATALOG KASIR
     // =========================================================================
     async function fetchProducts() {
       try {
@@ -494,7 +715,7 @@
       }
 
       grid.innerHTML = filtered.map(p => `
-        <div onclick="addToCart('${p.id}')" class="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 transition-all flex flex-col justify-between shadow-sm cursor-pointer active:scale-95">
+        <div onclick="openQtyModal(products.find(x => x.id === '${p.id}'), 'CASHIER')" class="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 transition-all flex flex-col justify-between shadow-sm cursor-pointer active:scale-95">
           <div>
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">${p.category_name || 'Umum'}</span>
             <h4 class="font-semibold text-xs text-slate-800 line-clamp-2 mt-0.5">${p.name}</h4>
@@ -510,28 +731,8 @@
     document.getElementById('search-input').addEventListener('input', renderProducts);
 
     // =========================================================================
-    // 4. KERANJANG KASIR
+    // 6. KERANJANG KASIR
     // =========================================================================
-    function addToCart(productId) {
-      const product = products.find(p => p.id === productId);
-      if (!product || product.stock <= 0) {
-        alert('Stok produk kosong!');
-        return;
-      }
-
-      const existing = cart.find(c => c.id === productId);
-      if (existing) {
-        if (existing.qty < product.stock) {
-          existing.qty += 1;
-        } else {
-          alert('Jumlah melebihi stok yang tersedia!');
-        }
-      } else {
-        cart.push({ ...product, qty: 1 });
-      }
-      updateCartUI();
-    }
-
     function updateQty(productId, delta) {
       const item = cart.find(c => c.id === productId);
       const product = products.find(p => p.id === productId);
@@ -605,7 +806,7 @@
     }
 
     // =========================================================================
-    // 5. BATCH PURCHASE ORDER (PO)
+    // 7. BATCH PURCHASE ORDER (PO)
     // =========================================================================
     function openPOModal() {
       poItems = [];
@@ -627,30 +828,9 @@
       const keyword = inputEl.value.trim();
       if (!keyword) return;
 
-      const found = products.find(p => 
-        (p.barcode && p.barcode.toLowerCase() === keyword.toLowerCase()) || 
-        p.name.toLowerCase() === keyword.toLowerCase()
-      );
-
-      if (found) {
-        const existingInPO = poItems.find(item => item.id === found.id);
-        if (existingInPO) {
-          existingInPO.qty += 1;
-        } else {
-          poItems.push({
-            id: found.id,
-            name: found.name,
-            barcode: found.barcode,
-            cost_price: found.cost_price || 0,
-            qty: 1,
-            is_new: false
-          });
-        }
-        inputEl.value = '';
-        renderPOTable();
-      } else {
-        openNewItemModal(keyword);
-      }
+      currentScanTarget = 'PO';
+      processBarcodeScanned(keyword);
+      inputEl.value = '';
     }
 
     function renderPOTable() {
@@ -783,7 +963,7 @@
     }
 
     // =========================================================================
-    // 6. CHECKOUT & PEMBAYARAN KASIR
+    // 8. CHECKOUT & PEMBAYARAN KASIR
     // =========================================================================
     function openCheckoutModal() {
       const totalPrice = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
