@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Posta POS - Kasir Ritel</title>
+  <title>Posta POS - Kasir & Manajemen Stok</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -18,11 +18,11 @@
       <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-black text-base shadow-sm">P</div>
       <div>
         <h1 class="font-bold text-sm leading-tight text-slate-900">Posta POS</h1>
-        <span class="text-[11px] text-slate-500 font-medium">Toko Berkah Mandiri &bull; Kasir Ritel</span>
+        <span class="text-[11px] text-slate-500 font-medium">Toko Berkah Mandiri</span>
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <span id="connection-status" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
         <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span> Online
       </span>
     </div>
@@ -53,27 +53,26 @@
       </div>
 
       <!-- GRID DAFTAR BARANG -->
-      <div class="flex-1 p-3 overflow-y-auto pb-24 md:pb-3">
+      <div class="flex-1 p-3 overflow-y-auto pb-28 md:pb-3">
         <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-          <!-- Data Produk dirender dinamis di sini -->
-          <div class="col-span-full py-12 text-center text-slate-400 text-sm">Memuat produk dari database...</div>
+          <div class="col-span-full py-12 text-center text-slate-400 text-sm">Memuat produk...</div>
         </div>
       </div>
     </main>
 
-    <!-- SISI KANAN: KERANJANG (TABLET / DESKTOP) -->
+    <!-- SISI KANAN: KERANJANG (DESKTOP) -->
     <aside class="hidden md:flex md:w-80 lg:w-96 bg-white border-l border-slate-200 flex-col justify-between shrink-0 shadow-sm">
       <div class="p-3.5 border-b border-slate-200 flex items-center justify-between">
         <h2 class="font-bold text-slate-800 text-sm">Keranjang Transaksi</h2>
         <button onclick="clearCart()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold">Kosongkan</button>
       </div>
 
-      <!-- LIST KERANJANG -->
+      <!-- LIST KERANJANG DESKTOP -->
       <div id="cart-list" class="flex-1 p-3 overflow-y-auto space-y-2">
         <div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>
       </div>
 
-      <!-- FOOTER KERANJANG -->
+      <!-- FOOTER KERANJANG DESKTOP -->
       <div class="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
         <div class="flex justify-between items-center text-xs text-slate-600">
           <span>Jumlah Item</span>
@@ -87,7 +86,7 @@
           id="btn-checkout" 
           onclick="openCheckoutModal()" 
           disabled
-          class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm text-sm transition active:scale-98">
+          class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm text-sm transition">
           Bayar Sekarang
         </button>
       </div>
@@ -95,22 +94,79 @@
 
   </div>
 
-  <!-- FLOATING CART BAR (MOBILE ONLY) -->
-  <div class="md:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur border-t border-slate-200 flex items-center justify-between gap-3 shadow-lg">
-    <div>
-      <span id="mobile-cart-qty" class="text-[11px] text-slate-500 font-medium block">0 Item</span>
-      <span id="mobile-cart-total" class="text-base font-extrabold text-emerald-600 leading-none">Rp 0</span>
+  <!-- FLOATING BOTTOM BAR & RINGKASAN MOBILE -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl z-40">
+    <!-- Tombol Expand / Collapse Ringkasan -->
+    <div onclick="toggleMobileCartDrawer()" class="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer">
+      <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        🛒 Ringkasan Belanja (<span id="mobile-cart-badge">0</span>)
+      </span>
+      <span id="drawer-arrow" class="text-xs text-slate-400 font-bold">▲ Buka Detail</span>
     </div>
-    <button 
-      id="mobile-btn-checkout"
-      onclick="openCheckoutModal()" 
-      disabled
-      class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold rounded-xl text-sm text-center shadow transition">
-      Bayar
-    </button>
+
+    <!-- Drawer Daftar Barang yang Dipilih (Mobile) -->
+    <div id="mobile-cart-drawer" class="max-h-56 overflow-y-auto p-3 space-y-2 hidden bg-white border-b border-slate-200">
+      <div id="mobile-cart-items-list" class="space-y-2"></div>
+    </div>
+
+    <!-- Bar Tombol Bayar -->
+    <div class="p-3 flex items-center justify-between gap-3">
+      <div>
+        <span class="text-[10px] text-slate-500 font-medium block">Total Tagihan</span>
+        <span id="mobile-cart-total" class="text-base font-extrabold text-emerald-600 leading-none">Rp 0</span>
+      </div>
+      <button 
+        id="mobile-btn-checkout"
+        onclick="openCheckoutModal()" 
+        disabled
+        class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold rounded-xl text-sm text-center shadow transition">
+        Bayar Sekarang
+      </button>
+    </div>
   </div>
 
-  <!-- MODAL PEMBAYARAN -->
+  <!-- MODAL 1: RESTOCK / BARANG MASUK -->
+  <div id="restock-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="font-bold text-slate-800 text-sm">Manajemen Stok Masuk</h3>
+        <button onclick="closeRestockModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+      </div>
+
+      <div>
+        <span class="text-xs text-slate-500 block">Nama Produk:</span>
+        <h4 id="restock-prod-name" class="font-bold text-sm text-slate-800"></h4>
+        <span id="restock-current-stock" class="text-xs text-emerald-600 font-semibold mt-0.5 block"></span>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1">Aksi</label>
+          <select id="restock-type" class="w-full text-xs font-medium p-2.5 border border-slate-200 rounded-xl bg-slate-50 focus:outline-none">
+            <option value="IN">➕ Barang Masuk (Tambah Stok)</option>
+            <option value="OUT">➖ Pengurangan / Rusak (Kurang Stok)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1">Jumlah (Qty)</label>
+          <input id="restock-qty" type="number" min="1" placeholder="Misal: 10" class="w-full text-sm font-bold p-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="text-xs font-semibold text-slate-700 block mb-1">Keterangan / Supplier</label>
+          <input id="restock-notes" type="text" placeholder="Contoh: Kulakan Pasar / Restock Agen" class="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:outline-none" />
+        </div>
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button onclick="closeRestockModal()" class="w-1/3 py-2 bg-slate-100 hover:bg-slate-200 font-semibold rounded-xl text-xs text-slate-700">Batal</button>
+        <button onclick="submitRestock()" id="btn-save-restock" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow">Simpan Stok</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: PEMBAYARAN CHECKOUT -->
   <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -123,7 +179,7 @@
         <span id="modal-total-tagihan" class="text-2xl font-black text-emerald-600">Rp 0</span>
       </div>
 
-      <!-- INPUT UANG DITERIMA -->
+      <!-- INPUT UANG -->
       <div class="space-y-1.5">
         <label class="text-xs font-semibold text-slate-700">Uang Tunai Diterima (Rp)</label>
         <input 
@@ -148,7 +204,7 @@
         <span id="modal-change-amount" class="text-base font-bold text-slate-800">Rp 0</span>
       </div>
 
-      <!-- TOMBOL SELESAIKAN TRANSAKSI -->
+      <!-- TOMBOL SELESAI -->
       <div class="pt-2 flex gap-2">
         <button onclick="closeCheckoutModal()" class="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 font-semibold rounded-xl text-xs text-slate-700">Batal</button>
         <button 
@@ -162,16 +218,17 @@
     </div>
   </div>
 
-  <!-- JAVASCRIPT ENGINE -->
+  <!-- JAVASCRIPT LOGIC -->
   <script>
     let products = [];
     let cart = [];
     let selectedCategory = 'ALL';
+    let currentRestockProduct = null;
     const tenantId = 'toko_demo_01';
 
     const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
-    // 1. Inisialisasi Ambil Produk dari API Cloudflare D1
+    // 1. Fetch Produk
     async function fetchProducts() {
       try {
         const res = await fetch(`/api/products?tenant_id=${tenantId}`);
@@ -182,20 +239,13 @@
           setupCategories();
           renderProducts();
         } else {
-          document.getElementById('product-grid').innerHTML = `
-            <div class="col-span-full py-12 text-center text-slate-500">
-              Belum ada produk aktif di database.
-            </div>`;
+          document.getElementById('product-grid').innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Belum ada produk aktif.</div>`;
         }
       } catch (err) {
-        document.getElementById('product-grid').innerHTML = `
-          <div class="col-span-full py-12 text-center text-rose-500 font-medium">
-            Gagal memuat produk: Pastikan binding D1 di Cloudflare Pages sudah aktif.
-          </div>`;
+        document.getElementById('product-grid').innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat produk.</div>`;
       }
     }
 
-    // 2. Setup Kategori Dinamis
     function setupCategories() {
       const categories = ['ALL', ...new Set(products.map(p => p.category_name).filter(Boolean))];
       const container = document.getElementById('category-container');
@@ -216,7 +266,7 @@
       renderProducts();
     }
 
-    // 3. Render Grid Produk
+    // 2. Render Grid Produk + Tombol Kelola Stok
     function renderProducts() {
       const keyword = document.getElementById('search-input').value.toLowerCase();
       const filtered = products.filter(p => {
@@ -232,27 +282,34 @@
       }
 
       grid.innerHTML = filtered.map(p => `
-        <button 
-          onclick="addToCart('${p.id}')"
-          class="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 active:scale-95 transition-all text-left flex flex-col justify-between shadow-sm">
-          <div>
+        <div class="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 transition-all flex flex-col justify-between shadow-sm relative group">
+          <div onclick="addToCart('${p.id}')" class="cursor-pointer">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">${p.category_name || 'Umum'}</span>
             <h4 class="font-semibold text-xs text-slate-800 line-clamp-2 mt-0.5">${p.name}</h4>
           </div>
-          <div class="mt-3 flex items-center justify-between">
-            <span class="font-bold text-xs text-emerald-600">${formatRupiah(p.price)}</span>
-            <span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">Stok: ${p.stock}</span>
+          
+          <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div>
+              <span class="font-bold text-xs text-emerald-600 block">${formatRupiah(p.price)}</span>
+              <span class="text-[10px] font-medium text-slate-500">Stok: <b class="${p.stock <= 3 ? 'text-rose-500' : 'text-slate-700'}">${p.stock}</b></span>
+            </div>
+            <button onclick="openRestockModal('${p.id}')" class="px-2 py-1 rounded bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-700 text-[10px] font-bold transition">
+              + Stok
+            </button>
           </div>
-        </button>
+        </div>
       `).join('');
     }
 
     document.getElementById('search-input').addEventListener('input', renderProducts);
 
-    // 4. Logika Keranjang Belanja
+    // 3. Logika Keranjang & UI Ringkasan Barang
     function addToCart(productId) {
       const product = products.find(p => p.id === productId);
-      if (!product || product.stock <= 0) return;
+      if (!product || product.stock <= 0) {
+        alert('Stok produk habis!');
+        return;
+      }
 
       const existing = cart.find(c => c.id === productId);
       if (existing) {
@@ -289,34 +346,51 @@
       updateCartUI();
     }
 
+    function toggleMobileCartDrawer() {
+      const drawer = document.getElementById('mobile-cart-drawer');
+      const arrow = document.getElementById('drawer-arrow');
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        arrow.innerText = '▼ Tutup Detail';
+      } else {
+        drawer.classList.add('hidden');
+        arrow.innerText = '▲ Buka Detail';
+      }
+    }
+
     function updateCartUI() {
-      const list = document.getElementById('cart-list');
+      const listDesktop = document.getElementById('cart-list');
+      const listMobile = document.getElementById('mobile-cart-items-list');
       const totalQty = cart.reduce((acc, item) => acc + item.qty, 0);
       const totalPrice = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
-      // Render Desktop Cart List
-      if (cart.length === 0) {
-        list.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>`;
-      } else {
-        list.innerHTML = cart.map(item => `
-          <div class="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50">
-            <div class="flex-1 pr-2">
-              <h5 class="text-xs font-semibold text-slate-800 line-clamp-1">${item.name}</h5>
-              <span class="text-xs text-emerald-600 font-bold">${formatRupiah(item.price)}</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button onclick="updateQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold">-</button>
-              <span class="text-xs font-bold w-5 text-center">${item.qty}</span>
-              <button onclick="updateQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold">+</button>
-            </div>
+      // Render Format Item
+      const renderItemHtml = (item) => `
+        <div class="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50">
+          <div class="flex-1 pr-2">
+            <h5 class="text-xs font-semibold text-slate-800 line-clamp-1">${item.name}</h5>
+            <span class="text-xs text-emerald-600 font-bold">${formatRupiah(item.price)} &times; ${item.qty}</span>
           </div>
-        `).join('');
+          <div class="flex items-center gap-1.5">
+            <button onclick="updateQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold">-</button>
+            <span class="text-xs font-bold w-5 text-center">${item.qty}</span>
+            <button onclick="updateQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold">+</button>
+          </div>
+        </div>
+      `;
+
+      if (cart.length === 0) {
+        listDesktop.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>`;
+        listMobile.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>`;
+      } else {
+        listDesktop.innerHTML = cart.map(renderItemHtml).join('');
+        listMobile.innerHTML = cart.map(renderItemHtml).join('');
       }
 
-      // Update Label Total
+      // Update Angka
       document.getElementById('cart-total-qty').innerText = totalQty;
       document.getElementById('cart-total-price').innerText = formatRupiah(totalPrice);
-      document.getElementById('mobile-cart-qty').innerText = `${totalQty} Item`;
+      document.getElementById('mobile-cart-badge').innerText = `${totalQty} item`;
       document.getElementById('mobile-cart-total').innerText = formatRupiah(totalPrice);
 
       const hasItems = cart.length > 0;
@@ -324,7 +398,66 @@
       document.getElementById('mobile-btn-checkout').disabled = !hasItems;
     }
 
-    // 5. Logika Checkout & Modal
+    // 4. Manajemen Modal Restock
+    function openRestockModal(productId) {
+      currentRestockProduct = products.find(p => p.id === productId);
+      if (!currentRestockProduct) return;
+
+      document.getElementById('restock-prod-name').innerText = currentRestockProduct.name;
+      document.getElementById('restock-current-stock').innerText = `Stok Saat Ini: ${currentRestockProduct.stock} ${currentRestockProduct.unit || 'pcs'}`;
+      document.getElementById('restock-qty').value = '';
+      document.getElementById('restock-notes').value = '';
+      document.getElementById('restock-modal').classList.remove('hidden');
+    }
+
+    function closeRestockModal() {
+      document.getElementById('restock-modal').classList.add('hidden');
+      currentRestockProduct = null;
+    }
+
+    async function submitRestock() {
+      const qty = parseInt(document.getElementById('restock-qty').value);
+      const type = document.getElementById('restock-type').value;
+      const notes = document.getElementById('restock-notes').value;
+
+      if (!qty || qty <= 0) {
+        alert('Masukkan jumlah Qty yang valid!');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-restock');
+      btn.disabled = true;
+      btn.innerText = 'Menyimpan...';
+
+      try {
+        const res = await fetch('/api/stock/adjust', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: tenantId,
+            product_id: currentRestockProduct.id,
+            type: type,
+            qty: qty,
+            notes: notes
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          alert('Stok produk berhasil diperbarui!');
+          closeRestockModal();
+          fetchProducts();
+        } else {
+          alert('Gagal: ' + result.error);
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan koneksi.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Simpan Stok';
+      }
+    }
+
+    // 5. Modal Checkout & Bayar
     function openCheckoutModal() {
       const totalPrice = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       document.getElementById('modal-total-tagihan').innerText = formatRupiah(totalPrice);
@@ -364,7 +497,6 @@
       }
     }
 
-    // 6. Submit Transaksi ke Backend Cloudflare Workers D1
     async function submitTransaction() {
       const totalPrice = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       const cash = parseFloat(document.getElementById('cash-input').value) || 0;
@@ -397,7 +529,7 @@
           alert('Transaksi Berhasil Disimpan!');
           closeCheckoutModal();
           clearCart();
-          fetchProducts(); // Refresh stok barang terbaru dari D1
+          fetchProducts();
         } else {
           alert('Gagal: ' + result.error);
         }
@@ -408,7 +540,6 @@
       }
     }
 
-    // Mulai saat halaman dimuat
     fetchProducts();
   </script>
 </body>
