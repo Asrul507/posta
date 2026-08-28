@@ -27,7 +27,7 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
     const transactionId = "trx_" + Date.now();
     const statements = [];
 
-    // 1. Simpan Header Transaksi
+    // 1. Header Transaksi
     statements.push(
       env.DB.prepare(`
         INSERT INTO transactions (id, tenant_id, user_id, invoice_number, total_amount, paid_amount, change_amount, payment_method)
@@ -44,7 +44,7 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
       )
     );
 
-    // 2. Simpan Detail Item & Potong Stok
+    // 2. Detail Items & Potong Stok
     for (const item of items) {
       const itemId = "item_" + Math.random().toString(36).substring(2, 11);
 
@@ -64,7 +64,6 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
         )
       );
 
-      // Potong Stok
       statements.push(
         env.DB.prepare(`
           UPDATE products 
@@ -73,12 +72,12 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
         `).bind(item.qty, item.id, tenant_id || "toko_demo_01")
       );
 
-      // Catat Mutasi Keluar
+      // Mutasi Keluar
       const movementId = "sm_" + Math.random().toString(36).substring(2, 11);
       statements.push(
         env.DB.prepare(`
-          INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, notes)
-          VALUES (?, ?, ?, 'OUT', ?, ?)
+          INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, stock_before, stock_after, notes)
+          VALUES (?, ?, ?, 'OUT', ?, 0, 0, ?)
         `).bind(
           movementId,
           tenant_id || "toko_demo_01",
