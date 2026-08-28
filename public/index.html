@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Posta POS - Kasir, Barcode Scanner & PO</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library ZXing: Engine Terbaik & Sangat Sensitif untuk Barcode 1D (EAN-13, UPC, CODE-128) -->
+  <!-- Library ZXing: Engine Terbaik untuk Barcode 1D (EAN-13, UPC, CODE-128) & QR Code -->
   <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -52,7 +52,8 @@
           <input 
             id="search-input"
             type="text" 
-            placeholder="Cari nama barang atau barcode..." 
+            placeholder="Ketik / Scan barcode barang lalu Enter..." 
+            onkeydown="if(event.key === 'Enter') handleManualSearch()"
             class="w-full pl-9 pr-3 py-2 text-sm bg-slate-100 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
           />
           <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -454,7 +455,10 @@
       if (e.key === 'Enter') {
         if (barcodeBuffer.length >= 3) {
           e.preventDefault();
-          processBarcodeScanned(barcodeBuffer.trim());
+          // Cek apakah form PO sedang aktif
+          const poModal = document.getElementById('po-modal');
+          const target = !poModal.classList.contains('hidden') ? 'PO' : 'CASHIER';
+          processBarcodeScanned(barcodeBuffer.trim(), target);
           barcodeBuffer = '';
         }
       } else if (e.key.length === 1) {
@@ -463,23 +467,48 @@
     });
 
     // =========================================================================
-    // 2. SCAN RESULT HANDLER -> TUTUP KAMERA & BUKA POP-UP QTY
+    // 2. SCAN RESULT HANDLER (ROBUST STRING MATCHING)
     // =========================================================================
-    function processBarcodeScanned(barcode) {
+    function processBarcodeScanned(rawBarcode, targetOverride = null) {
       closeCameraScanner();
+      
+      const target = targetOverride || currentScanTarget;
+      const cleanCode = String(rawBarcode).trim().toLowerCase();
 
-      const found = products.find(p => (p.barcode && p.barcode.toLowerCase() === barcode.toLowerCase()) || p.name.toLowerCase() === barcode.toLowerCase());
+      // Cari Produk di Daftar Products (cocokkan barcode string atau nama)
+      const found = products.find(p => {
+        const pBarcode = p.barcode ? String(p.barcode).trim().toLowerCase() : '';
+        const pName = p.name ? String(p.name).trim().toLowerCase() : '';
+        return pBarcode === cleanCode || pName === cleanCode;
+      });
 
       if (found) {
         playBeepSound('success');
-        openQtyModal(found, currentScanTarget);
+        openQtyModal(found, target);
       } else {
         playBeepSound('error');
-        if (currentScanTarget === 'PO') {
-          openNewItemModal(barcode);
+        if (target === 'PO') {
+          openNewItemModal(rawBarcode);
         } else {
-          alert(`Barcode "${barcode}" tidak ditemukan di katalog produk!`);
+          alert(`Barcode "${rawBarcode}" tidak ditemukan di katalog produk kasir! Silakan daftarkan barang terlebih dahulu lewat menu PO.`);
         }
+      }
+    }
+
+    function handleManualSearch() {
+      const searchInput = document.getElementById('search-input');
+      const val = searchInput.value.trim();
+      if (!val) return;
+
+      const found = products.find(p => {
+        const pBarcode = p.barcode ? String(p.barcode).trim().toLowerCase() : '';
+        const pName = p.name ? String(p.name).trim().toLowerCase() : '';
+        return pBarcode === val.toLowerCase() || pName === val.toLowerCase();
+      });
+
+      if (found) {
+        openQtyModal(found, 'CASHIER');
+        searchInput.value = '';
       }
     }
 
@@ -576,7 +605,7 @@
     }
 
     // =========================================================================
-    // 4. SCANNER KAMERA ZXING (SUPER CEPAT UNTUK BARCODE 1D / EAN-13)
+    // 4. SCANNER KAMERA ZXING (KASIR & PO)
     // =========================================================================
     async function openCameraScanner(target = 'CASHIER') {
       currentScanTarget = target;
@@ -586,26 +615,30 @@
       
       document.getElementById('camera-modal').classList.remove('hidden');
 
-      if (!codeReader) {
-        // Buat MultiFormatReader ZXing
-        const hints = new Map();
-        const formats = [
-          ZXing.BarcodeFormat.EAN_13,
-          ZXing.BarcodeFormat.EAN_8,
-          ZXing.BarcodeFormat.CODE_128,
-          ZXing.BarcodeFormat.CODE_39,
-          ZXing.BarcodeFormat.UPC_A,
-          ZXing.BarcodeFormat.UPC_E,
-          ZXing.BarcodeFormat.QR_CODE
-        ];
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-        codeReader = new ZXing.BrowserMultiFormatReader(hints);
+      // Reset instance reader jika ada sebelumnya
+      if (codeReader) {
+        try {
+          codeReader.reset();
+        } catch (e) {}
       }
+
+      const hints = new Map();
+      const formats = [
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.CODE_128,
+        ZXing.BarcodeFormat.CODE_39,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E,
+        ZXing.BarcodeFormat.QR_CODE
+      ];
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+      codeReader = new ZXing.BrowserMultiFormatReader(hints);
 
       try {
         const videoInputDevices = await codeReader.listVideoInputDevices();
-        // Pilih kamera belakang (environment)
         let selectedDeviceId = undefined;
         if (videoInputDevices.length > 0) {
           const backCam = videoInputDevices.find(device => 
@@ -618,7 +651,7 @@
 
         await codeReader.decodeFromVideoDevice(selectedDeviceId, 'camera-video', (result, err) => {
           if (result) {
-            processBarcodeScanned(result.getText());
+            processBarcodeScanned(result.getText(), currentScanTarget);
           }
         });
       } catch (err) {
@@ -679,7 +712,7 @@
       const keyword = document.getElementById('search-input').value.toLowerCase();
       const filtered = products.filter(p => {
         const matchCat = selectedCategory === 'ALL' || p.category_name === selectedCategory;
-        const matchSearch = p.name.toLowerCase().includes(keyword) || (p.barcode && p.barcode.includes(keyword));
+        const matchSearch = p.name.toLowerCase().includes(keyword) || (p.barcode && String(p.barcode).toLowerCase().includes(keyword));
         return matchCat && matchSearch;
       });
 
@@ -804,7 +837,7 @@
       if (!keyword) return;
 
       currentScanTarget = 'PO';
-      processBarcodeScanned(keyword);
+      processBarcodeScanned(keyword, 'PO');
       inputEl.value = '';
     }
 
