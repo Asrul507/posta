@@ -1,9 +1,10 @@
 name = "posta"
 compatibility_date = "2026-08-01"
-pages_build_output_dir = "public"
 
-# Hubungkan Database D1 ke Pages Functions
+[assets]
+directory = "./public"
+
 [[d1_databases]]
 binding = "DB"
-database_name = "posta" # Sesuaikan dengan nama database D1 Anda di Cloudflare
+database_name = "posta"
 database_id = "1ef8cd6d-4b17-4199-b1c8-2ca5780f048a"
