@@ -74,12 +74,12 @@ export async function handleSubmitPO(request: Request, env: Env): Promise<Respon
         `).bind(poItemId, poId, productId, item.name, item.qty, item.cost_price || 0)
       );
 
-      // Catat Mutasi Masuk
+      // Catat Mutasi Masuk (dengan stock_before & stock_after diisi nilai default 0)
       const movementId = "sm_" + Math.random().toString(36).substring(2, 9);
       statements.push(
         env.DB.prepare(`
-          INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, notes)
-          VALUES (?, ?, ?, 'IN', ?, ?)
+          INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, stock_before, stock_after, notes)
+          VALUES (?, ?, ?, 'IN', ?, 0, 0, ?)
         `).bind(
           movementId,
           tenant_id || "toko_demo_01",
