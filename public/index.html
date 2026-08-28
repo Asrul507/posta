@@ -3,19 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Posta POS - Kasir, Scanner & PO</title>
+  <title>Posta POS - Kasir, Barcode Scanner & PO</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library Scanner Barcode HTML5 Stabil -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- Library ZXing: Engine Terbaik & Sangat Sensitif untuk Barcode 1D (EAN-13, UPC, CODE-128) -->
+  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    #camera-reader {
-      width: 100% !important;
-      height: 100% !important;
-      position: relative;
-    }
-    #camera-reader video {
+    #camera-video {
       border-radius: 0.75rem;
       object-fit: cover !important;
       width: 100% !important;
@@ -135,7 +130,7 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- 1. POP-UP MODAL SCANNER KAMERA (Z-INDEX TERTINGGI Z-[100])                -->
+  <!-- 1. POP-UP MODAL SCANNER KAMERA ZXING (LAYER Z-[100])                      -->
   <!-- ========================================================================= -->
   <div id="camera-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl space-y-3 relative">
@@ -146,10 +141,10 @@
         <button onclick="closeCameraScanner()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-800 text-lg font-bold">&times;</button>
       </div>
 
-      <!-- Area Viewport Kamera -->
+      <!-- Video Scanner Element ZXing -->
       <div class="relative w-full h-64 bg-black rounded-xl overflow-hidden flex items-center justify-center border border-slate-200">
-        <div id="camera-reader"></div>
-        <!-- Panduan Garis Merah Scanner -->
+        <video id="camera-video" playsinline muted autoplay class="w-full h-full object-cover"></video>
+        <!-- Garis Panduan Laser Merah -->
         <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div class="w-[85%] h-28 border-2 border-emerald-400 rounded-lg relative">
             <div class="w-full h-0.5 bg-rose-500 absolute top-1/2 -translate-y-1/2 animate-pulse shadow-sm"></div>
@@ -158,7 +153,7 @@
       </div>
 
       <div class="text-center space-y-2">
-        <p class="text-[11px] text-slate-500">Posisikan garis merah melintang di tengah barcode.</p>
+        <p class="text-[11px] text-slate-500">Posisikan garis merah melintang di tengah barcode garis.</p>
         <button onclick="closeCameraScanner()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
           Tutup Scanner
         </button>
@@ -176,7 +171,6 @@
         <button onclick="closeQtyModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       </div>
 
-      <!-- Info Produk Terpilih -->
       <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
         <h4 id="qty-product-name" class="font-bold text-sm text-slate-900 leading-snug"></h4>
         <div class="flex justify-between items-center text-xs pt-1">
@@ -185,7 +179,6 @@
         </div>
       </div>
 
-      <!-- Input Jumlah Qty -->
       <div class="space-y-1.5">
         <label class="text-xs font-bold text-slate-700">Jumlah (Qty)</label>
         <div class="flex items-center gap-2">
@@ -202,7 +195,6 @@
         </div>
       </div>
 
-      <!-- Input Harga Beli (Khusus Mode PO) -->
       <div id="qty-modal-cost-container" class="space-y-1 hidden">
         <label class="text-[10px] font-bold text-slate-500 uppercase">Harga Beli / Modal Satuan (Rp)</label>
         <input id="modal-cost-number" type="number" class="w-full text-xs font-bold p-2 border border-slate-300 rounded-lg focus:outline-none" />
@@ -218,7 +210,7 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- 3. MODAL: BATCH PURCHASE ORDER (BARANG MASUK) Z-[50]                      -->
+  <!-- 3. MODAL: BATCH PURCHASE ORDER (BARANG MASUK)                             -->
   <!-- ========================================================================= -->
   <div id="po-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
     <div class="bg-white rounded-2xl max-w-2xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -410,8 +402,8 @@
     let cart = [];
     let poItems = [];
     let selectedCategory = 'ALL';
-    let html5QrCode = null;
-    let currentScanTarget = 'CASHIER'; // 'CASHIER' atau 'PO'
+    let codeReader = null;
+    let currentScanTarget = 'CASHIER';
     let selectedProductForQty = null;
     const tenantId = 'toko_demo_01';
 
@@ -584,7 +576,7 @@
     }
 
     // =========================================================================
-    // 4. SCANNER KAMERA CONTROLLER (OPTIMASI BARCODE 1D RITEL & NATIVE ENGINE)
+    // 4. SCANNER KAMERA ZXING (SUPER CEPAT UNTUK BARCODE 1D / EAN-13)
     // =========================================================================
     async function openCameraScanner(target = 'CASHIER') {
       currentScanTarget = target;
@@ -594,70 +586,53 @@
       
       document.getElementById('camera-modal').classList.remove('hidden');
 
-      // Hentikan dan bersihkan instance lama jika masih tersisa
-      if (html5QrCode) {
-        try {
-          if (html5QrCode.isScanning) {
-            await html5QrCode.stop();
-          }
-          await html5QrCode.clear();
-        } catch (e) {}
-        html5QrCode = null;
+      if (!codeReader) {
+        // Buat MultiFormatReader ZXing
+        const hints = new Map();
+        const formats = [
+          ZXing.BarcodeFormat.EAN_13,
+          ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.CODE_128,
+          ZXing.BarcodeFormat.CODE_39,
+          ZXing.BarcodeFormat.UPC_A,
+          ZXing.BarcodeFormat.UPC_E,
+          ZXing.BarcodeFormat.QR_CODE
+        ];
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        codeReader = new ZXing.BrowserMultiFormatReader(hints);
       }
 
-      // Inisialisasi scanner dengan format 1D eksplisit & BarcodeDetector native engine
-      html5QrCode = new Html5Qrcode("camera-reader", {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.QR_CODE
-        ],
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true // Menggunakan sensor scanner native super cepat bawaan iOS/Android
-        },
-        verbose: false
-      });
-
-      const config = { 
-        fps: 25, 
-        qrbox: { width: 280, height: 130 },
-        aspectRatio: 1.0,
-        videoConstraints: {
-          facingMode: { ideal: "environment" },
-          focusMode: { ideal: "continuous" },
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 }
-        }
-      };
-
       try {
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            processBarcodeScanned(decodedText);
-          },
-          (errorMessage) => {}
-        );
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+        // Pilih kamera belakang (environment)
+        let selectedDeviceId = undefined;
+        if (videoInputDevices.length > 0) {
+          const backCam = videoInputDevices.find(device => 
+            device.label.toLowerCase().includes('back') || 
+            device.label.toLowerCase().includes('rear') || 
+            device.label.toLowerCase().includes('environment')
+          );
+          selectedDeviceId = backCam ? backCam.deviceId : videoInputDevices[videoInputDevices.length - 1].deviceId;
+        }
+
+        await codeReader.decodeFromVideoDevice(selectedDeviceId, 'camera-video', (result, err) => {
+          if (result) {
+            processBarcodeScanned(result.getText());
+          }
+        });
       } catch (err) {
-        alert("Gagal mengakses kamera. Pastikan izin kamera aktif pada browser.");
+        alert("Gagal mengakses kamera. Pastikan izin kamera telah diizinkan.");
         closeCameraScanner();
       }
     }
 
-    async function closeCameraScanner() {
+    function closeCameraScanner() {
       document.getElementById('camera-modal').classList.add('hidden');
-      if (html5QrCode) {
+      if (codeReader) {
         try {
-          if (html5QrCode.isScanning) {
-            await html5QrCode.stop();
-          }
-          await html5QrCode.clear();
-        } catch (err) {}
-        html5QrCode = null;
+          codeReader.reset();
+        } catch (e) {}
       }
     }
 
