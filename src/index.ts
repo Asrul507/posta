@@ -41,49 +41,87 @@ export default {
     }
 
     // ---------------------------------------------------------
-    // 2. POST /api/stock/adjust : Barang Masuk / Ubah Stok
+    // 2. POST /api/po/submit : Batch Purchase Order & Auto Add Produk
     // ---------------------------------------------------------
-    if (url.pathname === "/api/stock/adjust" && request.method === "POST") {
+    if (url.pathname === "/api/po/submit" && request.method === "POST") {
       try {
         const payload: any = await request.json();
-        const { tenant_id, product_id, type, qty, notes } = payload;
-        // type: 'IN' (tambah stok), 'OUT' (kurang stok)
+        const { tenant_id, po_number, supplier_name, notes, items } = payload;
 
-        // Ambil stok saat ini
-        const product: any = await env.DB.prepare("SELECT stock FROM products WHERE id = ? AND tenant_id = ?")
-          .bind(product_id, tenant_id || "toko_demo_01")
-          .first();
-
-        if (!product) {
-          return new Response(JSON.stringify({ success: false, error: "Produk tidak ditemukan" }), { status: 404 });
+        if (!items || items.length === 0) {
+          return new Response(JSON.stringify({ success: false, error: "Daftar barang PO tidak boleh kosong" }), { status: 400 });
         }
 
-        const currentStock = product.stock;
-        const change = type === "IN" ? Math.abs(qty) : -Math.abs(qty);
-        const finalStock = currentStock + change;
+        const poId = "po_" + Date.now();
+        const statements = [];
 
-        if (finalStock < 0) {
-          return new Response(JSON.stringify({ success: false, error: "Stok tidak boleh bernilai negatif" }), { status: 400 });
-        }
-
-        const movementId = "sm_" + Date.now();
-        const statements = [
-          // Update Stok di Produk
-          env.DB.prepare("UPDATE products SET stock = ? WHERE id = ? AND tenant_id = ?")
-            .bind(finalStock, product_id, tenant_id || "toko_demo_01"),
-          // Catat Riwayat Mutasi
+        // 1. Header Purchase Order
+        statements.push(
           env.DB.prepare(`
-            INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, stock_before, stock_after, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `).bind(movementId, tenant_id || "toko_demo_01", product_id, type, change, currentStock, finalStock, notes || "Update Manual")
-        ];
+            INSERT INTO purchase_orders (id, tenant_id, po_number, supplier_name, notes, total_items)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).bind(poId, tenant_id || "toko_demo_01", po_number, supplier_name || "Supplier Umum", notes || "", items.length)
+        );
 
+        // 2. Proses tiap item PO
+        for (const item of items) {
+          let productId = item.id;
+
+          // Jika barang BARU (belum terdaftar di master database)
+          if (item.is_new) {
+            productId = "prod_" + Math.random().toString(36).substring(2, 9);
+            statements.push(
+              env.DB.prepare(`
+                INSERT INTO products (id, tenant_id, barcode, name, price, cost_price, stock, unit, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+              `).bind(
+                productId,
+                tenant_id || "toko_demo_01",
+                item.barcode || null,
+                item.name,
+                item.price || (item.cost_price ? item.cost_price * 1.2 : 0),
+                item.cost_price || 0,
+                item.qty, // Stok awal langsung diset ke qty PO
+                item.unit || "pcs"
+              )
+            );
+          } else {
+            // Jika barang SUDAH ADA: Update stok dan harga beli terbaru
+            statements.push(
+              env.DB.prepare(`
+                UPDATE products 
+                SET stock = stock + ?, cost_price = COALESCE(?, cost_price)
+                WHERE id = ? AND tenant_id = ?
+              `).bind(item.qty, item.cost_price || null, productId, tenant_id || "toko_demo_01")
+            );
+          }
+
+          // Catat Item ke Detail PO
+          const poItemId = "poi_" + Math.random().toString(36).substring(2, 9);
+          statements.push(
+            env.DB.prepare(`
+              INSERT INTO purchase_order_items (id, po_id, product_id, product_name, qty, cost_price)
+              VALUES (?, ?, ?, ?, ?, ?)
+            `).bind(poItemId, poId, productId, item.name, item.qty, item.cost_price || 0)
+          );
+
+          // Catat Riwayat Mutasi Stok Masuk
+          const movementId = "sm_" + Math.random().toString(36).substring(2, 9);
+          statements.push(
+            env.DB.prepare(`
+              INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, stock_before, stock_after, notes)
+              VALUES (?, ?, ?, 'IN', ?, 0, 0, ?)
+            `).bind(movementId, tenant_id || "toko_demo_01", productId, item.qty, `PO No: ${po_number} (${supplier_name || 'Restock'})`)
+          );
+        }
+
+        // Eksekusi semua secara atomik (aman & konsisten)
         await env.DB.batch(statements);
 
         return new Response(JSON.stringify({ 
           success: true, 
-          message: "Stok berhasil diperbarui", 
-          stock_after: finalStock 
+          message: `PO ${po_number} berhasil disimpan dan stok telah diperbarui!`,
+          po_id: poId
         }), {
           headers: { "Content-Type": "application/json" }
         });
@@ -96,22 +134,12 @@ export default {
     }
 
     // ---------------------------------------------------------
-    // 3. POST /api/checkout : Transaksi Penjualan & Kurangi Stok
+    // 3. POST /api/checkout : Kasir Penjualan
     // ---------------------------------------------------------
     if (url.pathname === "/api/checkout" && request.method === "POST") {
       try {
         const payload: any = await request.json();
-        const { 
-          tenant_id, 
-          user_id, 
-          invoice_number, 
-          total_amount, 
-          paid_amount, 
-          change_amount, 
-          payment_method, 
-          items 
-        } = payload;
-
+        const { tenant_id, user_id, invoice_number, total_amount, paid_amount, change_amount, payment_method, items } = payload;
         const transactionId = "trx_" + Date.now();
         const statements = [];
 
@@ -119,47 +147,22 @@ export default {
           env.DB.prepare(`
             INSERT INTO transactions (id, tenant_id, user_id, invoice_number, total_amount, paid_amount, change_amount, payment_method)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `).bind(
-            transactionId, 
-            tenant_id, 
-            user_id || "user_kasir_01", 
-            invoice_number, 
-            total_amount, 
-            paid_amount, 
-            change_amount, 
-            payment_method
-          )
+          `).bind(transactionId, tenant_id, user_id || "user_kasir_01", invoice_number, total_amount, paid_amount, change_amount, payment_method)
         );
 
         for (const item of items) {
           const itemId = "item_" + Math.random().toString(36).substring(2, 11);
-          
           statements.push(
             env.DB.prepare(`
               INSERT INTO transaction_items (id, transaction_id, product_id, product_name, price, cost_price, qty, subtotal)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `).bind(
-              itemId, 
-              transactionId, 
-              item.id, 
-              item.name, 
-              item.price, 
-              item.cost_price || 0, 
-              item.qty, 
-              item.price * item.qty
-            )
+            `).bind(itemId, transactionId, item.id, item.name, item.price, item.cost_price || 0, item.qty, item.price * item.qty)
           );
 
-          // Update Stok
           statements.push(
-            env.DB.prepare(`
-              UPDATE products 
-              SET stock = stock - ? 
-              WHERE id = ? AND tenant_id = ?
-            `).bind(item.qty, item.id, tenant_id)
+            env.DB.prepare("UPDATE products SET stock = stock - ? WHERE id = ? AND tenant_id = ?").bind(item.qty, item.id, tenant_id)
           );
 
-          // Catat Mutasi Barang Keluar (Penjualan)
           statements.push(
             env.DB.prepare(`
               INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, stock_before, stock_after, notes)
@@ -170,11 +173,7 @@ export default {
 
         await env.DB.batch(statements);
 
-        return new Response(JSON.stringify({ 
-          success: true, 
-          message: "Transaksi berhasil diproses", 
-          transaction_id: transactionId 
-        }), {
+        return new Response(JSON.stringify({ success: true, message: "Transaksi berhasil", transaction_id: transactionId }), {
           headers: { "Content-Type": "application/json" }
         });
       } catch (err: any) {
