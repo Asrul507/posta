@@ -35,58 +35,90 @@
 <body class="bg-slate-100 text-slate-800 antialiased h-screen flex flex-col overflow-hidden font-sans">
 
   <!-- ========================================================================= -->
-  <!-- TOAST NOTIFICATION CONTAINER (POP-UP PEMBERITAHUAN MUNCUL DARI KANAN ATAS) -->
+  <!-- TOAST NOTIFICATION CONTAINER                                              -->
   <!-- ========================================================================= -->
   <div id="toast-container" class="fixed top-4 right-4 z-[150] space-y-2 pointer-events-none"></div>
 
-  <!-- HEADER NAVIGASI -->
-  <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-sm">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-sm shadow-sm">
-        <i class="fa-solid fa-cash-register"></i>
+  <!-- ========================================================================= -->
+  <!-- SIDEBAR DRAWER (MENU LAPORAN & MASTER DATA)                               -->
+  <!-- ========================================================================= -->
+  <div id="sidebar-backdrop" onclick="toggleSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[110] hidden transition-opacity"></div>
+  
+  <aside id="sidebar-drawer" class="fixed top-0 bottom-0 left-0 w-72 bg-white shadow-2xl z-[120] transform -translate-x-full transition-transform duration-300 flex flex-col justify-between">
+    <div>
+      <!-- Sidebar Header -->
+      <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+            <i class="fa-solid fa-cash-register"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-sm text-slate-900 leading-tight">Posta POS</h2>
+            <span class="text-[11px] text-slate-500 font-medium">Navigasi Utama</span>
+          </div>
+        </div>
+        <button onclick="toggleSidebar(false)" class="w-8 h-8 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
+
+      <!-- Menu List -->
+      <div class="p-3 space-y-1 text-xs font-bold text-slate-700">
+        <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Transaksi & Kasir</div>
+        <button onclick="switchView('POS'); toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition">
+          <i class="fa-solid fa-cart-shopping w-4 text-emerald-600 text-sm"></i>
+          <span>Mesin Kasir (POS)</span>
+        </button>
+        <button onclick="openContinuousCamera('CASHIER'); toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition">
+          <i class="fa-solid fa-barcode w-4 text-emerald-600 text-sm"></i>
+          <span>Scan Barcode Kasir</span>
+        </button>
+        <button onclick="openPOModal(); toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition">
+          <i class="fa-solid fa-box-open w-4 text-emerald-600 text-sm"></i>
+          <span>Input Barang Masuk</span>
+        </button>
+
+        <div class="pt-4 px-3 py-2 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Data & Laporan</div>
+        <button onclick="switchView('PRODUCTS'); toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+          <i class="fa-solid fa-boxes-stacked w-4 text-slate-500 text-sm"></i>
+          <span>Daftar Master Produk</span>
+        </button>
+        <button onclick="switchView('HISTORY'); toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+          <i class="fa-solid fa-receipt w-4 text-slate-500 text-sm"></i>
+          <span>Riwayat Transaksi Kasir</span>
+        </button>
+        <button onclick="switchView('PO_HISTORY'); toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+          <i class="fa-solid fa-truck-ramp-box w-4 text-slate-500 text-sm"></i>
+          <span>Riwayat Barang Masuk</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sidebar Footer -->
+    <div class="p-4 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500">
+      <div class="font-bold text-slate-800">Toko Berkah Mandiri</div>
+      <div>Cloudflare Worker & D1 Database</div>
+    </div>
+  </aside>
+
+  <!-- HEADER TOP BAR -->
+  <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-sm z-30">
+    <div class="flex items-center gap-3">
+      <!-- Tombol Buka Sidebar Hamburger -->
+      <button onclick="toggleSidebar(true)" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 text-sm transition">
+        <i class="fa-solid fa-bars"></i>
+      </button>
       <div>
-        <h1 class="font-bold text-sm leading-tight text-slate-900">Posta POS</h1>
+        <h1 id="page-title" class="font-bold text-sm leading-tight text-slate-900">Posta POS</h1>
         <span class="text-[11px] text-slate-500 font-medium">Toko Berkah Mandiri</span>
       </div>
     </div>
 
-    <!-- Navigasi Menu Header -->
-    <div class="flex items-center gap-1.5 sm:gap-2">
-      <!-- Tombol Kasir Aktif -->
-      <button onclick="switchView('POS')" id="nav-pos-btn" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+    <div class="flex items-center gap-2">
+      <!-- Tombol Kembali ke Kasir (Jika sedang di tabel laporan) -->
+      <button onclick="switchView('POS')" id="header-back-pos-btn" class="hidden px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
         <i class="fa-solid fa-cart-shopping"></i>
-        <span class="hidden sm:inline">Kasir</span>
-      </button>
-
-      <!-- Tombol Scan Kasir Cepat -->
-      <button onclick="openContinuousCamera('CASHIER')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-        <i class="fa-solid fa-barcode"></i>
-        <span class="hidden sm:inline">Scan Cepat</span>
-      </button>
-
-      <!-- Tombol Barang Masuk (PO) -->
-      <button onclick="openPOModal()" class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-        <i class="fa-solid fa-box-open"></i>
-        <span class="hidden sm:inline">Barang Masuk</span>
-      </button>
-
-      <!-- Tombol Master Produk -->
-      <button onclick="switchView('PRODUCTS')" id="nav-prod-btn" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
-        <i class="fa-solid fa-boxes-stacked"></i>
-        <span class="hidden md:inline">Master Produk</span>
-      </button>
-
-      <!-- Tombol Riwayat Transaksi -->
-      <button onclick="switchView('HISTORY')" id="nav-hist-btn" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
-        <i class="fa-solid fa-receipt"></i>
-        <span class="hidden md:inline">Riwayat Kasir</span>
-      </button>
-
-      <!-- Tombol Riwayat Barang Masuk -->
-      <button onclick="switchView('PO_HISTORY')" id="nav-pohist-btn" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5">
-        <i class="fa-solid fa-truck-ramp-box"></i>
-        <span class="hidden md:inline">Riwayat Masuk</span>
+        <span>Ke Kasir</span>
       </button>
     </div>
   </header>
@@ -113,7 +145,7 @@
         <button onclick="filterCategory('ALL')" class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white shrink-0 shadow-sm" data-category="ALL">Semua</button>
       </div>
 
-      <div class="flex-1 p-3 overflow-y-auto pb-28 md:pb-3">
+      <div class="flex-1 p-3 overflow-y-auto pb-32 md:pb-3">
         <div id="product-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
           <div class="col-span-full py-12 text-center text-slate-400 text-sm">Memuat katalog barang...</div>
         </div>
@@ -159,15 +191,15 @@
   </div>
 
   <!-- VIEW 2: MASTER DATA BARANG (TABEL) -->
-  <div id="view-products" class="flex-1 hidden flex-col bg-slate-50 p-4 overflow-hidden">
+  <div id="view-products" class="flex-1 hidden flex-col bg-slate-50 p-3 sm:p-4 overflow-hidden pb-20 md:pb-4">
     <div class="bg-white rounded-2xl border border-slate-200 flex-1 flex flex-col overflow-hidden shadow-sm">
-      <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div class="p-3 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5">
         <div>
-          <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
             <i class="fa-solid fa-boxes-stacked text-emerald-600"></i>
             <span>Daftar Master Produk</span>
           </h2>
-          <span class="text-xs text-slate-500">Seluruh katalog barang dan sisa stok aktif di toko</span>
+          <span class="text-[11px] text-slate-500">Seluruh katalog barang dan sisa stok aktif di database</span>
         </div>
         <div class="relative w-full sm:w-64">
           <input 
@@ -181,7 +213,7 @@
         </div>
       </div>
 
-      <div class="flex-1 overflow-auto p-4">
+      <div class="flex-1 overflow-auto p-3 sm:p-4">
         <table class="w-full text-left text-xs border-collapse">
           <thead>
             <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
@@ -202,15 +234,15 @@
   </div>
 
   <!-- VIEW 3: RIWAYAT TRANSAKSI KASIR (TABEL) -->
-  <div id="view-history" class="flex-1 hidden flex-col bg-slate-50 p-4 overflow-hidden">
+  <div id="view-history" class="flex-1 hidden flex-col bg-slate-50 p-3 sm:p-4 overflow-hidden pb-20 md:pb-4">
     <div class="bg-white rounded-2xl border border-slate-200 flex-1 flex flex-col overflow-hidden shadow-sm">
-      <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+      <div class="p-3 sm:p-4 border-b border-slate-200 flex justify-between items-center">
         <div>
-          <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
             <i class="fa-solid fa-receipt text-emerald-600"></i>
             <span>Riwayat Transaksi Kasir</span>
           </h2>
-          <span class="text-xs text-slate-500">Daftar nota belanja yang telah tersimpan di database</span>
+          <span class="text-[11px] text-slate-500">Daftar nota belanja tersimpan</span>
         </div>
         <button onclick="fetchTransactions()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5">
           <i class="fa-solid fa-rotate-right"></i>
@@ -218,7 +250,7 @@
         </button>
       </div>
 
-      <div class="flex-1 overflow-auto p-4">
+      <div class="flex-1 overflow-auto p-3 sm:p-4">
         <table class="w-full text-left text-xs border-collapse">
           <thead>
             <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
@@ -238,16 +270,16 @@
     </div>
   </div>
 
-  <!-- VIEW 4: RIWAYAT BARANG MASUK (PO TABLE) -->
-  <div id="view-po-history" class="flex-1 hidden flex-col bg-slate-50 p-4 overflow-hidden">
+  <!-- VIEW 4: RIWAYAT BARANG MASUK (TABEL) -->
+  <div id="view-po-history" class="flex-1 hidden flex-col bg-slate-50 p-3 sm:p-4 overflow-hidden pb-20 md:pb-4">
     <div class="bg-white rounded-2xl border border-slate-200 flex-1 flex flex-col overflow-hidden shadow-sm">
-      <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+      <div class="p-3 sm:p-4 border-b border-slate-200 flex justify-between items-center">
         <div>
-          <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+          <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
             <i class="fa-solid fa-truck-ramp-box text-emerald-600"></i>
-            <span>Riwayat Barang Masuk (PO)</span>
+            <span>Riwayat Barang Masuk</span>
           </h2>
-          <span class="text-xs text-slate-500">Log dokumen penerimaan stok kulakan barang</span>
+          <span class="text-[11px] text-slate-500">Log dokumen penerimaan stok dari supplier</span>
         </div>
         <button onclick="fetchPOHistory()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5">
           <i class="fa-solid fa-rotate-right"></i>
@@ -255,7 +287,7 @@
         </button>
       </div>
 
-      <div class="flex-1 overflow-auto p-4">
+      <div class="flex-1 overflow-auto p-3 sm:p-4">
         <table class="w-full text-left text-xs border-collapse">
           <thead>
             <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
@@ -274,41 +306,58 @@
     </div>
   </div>
 
-  <!-- FLOATING BOTTOM BAR (MOBILE KASIR) -->
-  <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl z-40">
-    <div onclick="toggleMobileCartDrawer()" class="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer">
-      <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-        <i class="fa-solid fa-basket-shopping text-emerald-600"></i>
-        <span>Ringkasan Belanja (<span id="mobile-cart-badge">0</span>)</span>
-      </span>
-      <span id="drawer-arrow" class="text-xs text-slate-400 font-bold">▲ Buka Detail</span>
+  <!-- ========================================================================= -->
+  <!-- MOBILE DRAWER KERANJANG (MUNCUL JIKA DIBUKA DI MOBILE)                     -->
+  <!-- ========================================================================= -->
+  <div id="mobile-cart-drawer" class="md:hidden fixed bottom-16 left-0 right-0 max-h-72 overflow-y-auto p-3 space-y-2 hidden bg-white border-t border-slate-200 shadow-2xl z-40">
+    <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+      <span class="font-bold text-xs text-slate-800">Detail Keranjang Belanja</span>
+      <button onclick="toggleMobileCartDrawer(false)" class="text-xs text-slate-400 font-bold">Tutup &times;</button>
     </div>
-
-    <div id="mobile-cart-drawer" class="max-h-56 overflow-y-auto p-3 space-y-2 hidden bg-white border-b border-slate-200">
-      <div id="mobile-cart-items-list" class="space-y-2"></div>
-    </div>
-
-    <div class="p-3 flex items-center justify-between gap-3">
-      <div>
-        <span class="text-[10px] text-slate-500 font-medium block">Total Tagihan</span>
-        <span id="mobile-cart-total" class="text-base font-extrabold text-emerald-600 leading-none">Rp 0</span>
-      </div>
-      <button 
-        id="mobile-btn-checkout"
-        onclick="openCheckoutModal()" 
-        disabled
-        class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold rounded-xl text-sm text-center shadow transition flex items-center justify-center gap-2">
-        <i class="fa-solid fa-money-bill-wave"></i>
-        <span>Bayar Sekarang</span>
-      </button>
+    <div id="mobile-cart-items-list" class="space-y-2"></div>
+    <div class="pt-2 flex justify-between items-center border-t border-slate-100">
+      <span class="text-xs text-slate-500 font-semibold">Total Tagihan:</span>
+      <span id="mobile-drawer-total" class="font-black text-emerald-600 text-sm">Rp 0</span>
     </div>
   </div>
 
   <!-- ========================================================================= -->
+  <!-- BOTTOM NAVIGATION BAR (NAVIGASI UTAMA DI BAGIAN BAWAH)                   -->
+  <!-- ========================================================================= -->
+  <nav class="bg-white border-t border-slate-200 px-3 py-2 flex items-center justify-around shrink-0 shadow-lg z-40">
+    <!-- 1. Menu Kasir (POS) -->
+    <button onclick="switchView('POS')" id="bottom-nav-pos" class="flex flex-col items-center gap-1 text-emerald-600 transition flex-1">
+      <i class="fa-solid fa-cart-shopping text-base"></i>
+      <span class="text-[10px] font-bold">Kasir</span>
+    </button>
+
+    <!-- 2. Scan Barcode Kasir -->
+    <button onclick="openContinuousCamera('CASHIER')" class="flex flex-col items-center gap-1 text-slate-500 hover:text-emerald-600 transition flex-1">
+      <div class="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center -mt-3 shadow-md">
+        <i class="fa-solid fa-barcode text-sm"></i>
+      </div>
+      <span class="text-[10px] font-bold">Scan Kasir</span>
+    </button>
+
+    <!-- 3. Input Barang Masuk -->
+    <button onclick="openPOModal()" class="flex flex-col items-center gap-1 text-slate-500 hover:text-emerald-600 transition flex-1">
+      <i class="fa-solid fa-box-open text-base"></i>
+      <span class="text-[10px] font-bold">Barang Masuk</span>
+    </button>
+
+    <!-- 4. Ringkasan Keranjang (Mobile Trigger) -->
+    <button onclick="toggleMobileCartDrawer()" class="md:hidden flex flex-col items-center gap-1 text-slate-500 hover:text-emerald-600 transition flex-1 relative">
+      <i class="fa-solid fa-basket-shopping text-base"></i>
+      <span id="bottom-cart-badge" class="absolute -top-1 right-3 bg-rose-500 text-white text-[9px] font-black px-1.5 rounded-full">0</span>
+      <span class="text-[10px] font-bold">Keranjang</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================================= -->
   <!-- MODAL: CONTINUOUS CAMERA SCANNER (KASIR & BARANG MASUK)                    -->
   <!-- ========================================================================= -->
-  <div id="camera-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] hidden flex flex-col justify-between p-4">
-    <!-- Top Header Scanner -->
+  <div id="camera-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[130] hidden flex flex-col justify-between p-4">
+    <!-- Header Scanner -->
     <div class="flex items-center justify-between text-white shrink-0">
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
@@ -323,7 +372,6 @@
     <div class="relative flex-1 my-3 flex items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-black">
       <video id="camera-video" playsinline muted autoplay class="w-full h-full object-cover"></video>
       
-      <!-- Overlay Animasi Laser Merah & Feedback Flash -->
       <div id="scanner-feedback" class="absolute inset-0 border-4 border-transparent pointer-events-none rounded-2xl flex items-center justify-center">
         <div class="w-[85%] max-w-[320px] h-36 border-2 border-emerald-400 rounded-xl relative shadow-lg">
           <div class="w-full h-0.5 bg-rose-500 absolute top-1/2 -translate-y-1/2 animate-pulse shadow-sm"></div>
@@ -347,11 +395,10 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL: BARANG MASUK (PO DENGAN DROPDOWN PENCARIAN PRODUK)                -->
+  <!-- MODAL: BARANG MASUK (PO) DENGAN DROPDOWN PENCARIAN                        -->
   <!-- ========================================================================= -->
-  <div id="po-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+  <div id="po-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-2 sm:p-4">
     <div class="bg-white rounded-2xl max-w-2xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-      <!-- PO Header -->
       <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white text-sm">
@@ -367,7 +414,6 @@
         </button>
       </div>
 
-      <!-- PO Metadata -->
       <div class="p-3 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2 shrink-0 bg-white">
         <div>
           <label class="text-[10px] font-bold text-slate-500 uppercase">Nomor Dokumen</label>
@@ -383,16 +429,14 @@
         </div>
       </div>
 
-      <!-- PO Dropdown Search & Camera Scanner -->
       <div class="p-3 bg-emerald-50/50 border-b border-emerald-100 shrink-0 space-y-2">
         <div class="flex gap-2">
-          <!-- Input dengan Datalist Dropdown Otomatis dari Master Produk -->
           <div class="relative flex-1">
             <input 
               id="po-search-input" 
               list="master-products-datalist"
               type="text" 
-              placeholder="Pilih dropdown / ketik nama / scan barcode barang..." 
+              placeholder="Pilih dropdown / ketik nama / scan barcode..." 
               onkeydown="if(event.key === 'Enter') handlePOSearch()"
               class="w-full text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
             />
@@ -410,7 +454,6 @@
         </div>
       </div>
 
-      <!-- PO Items Table List -->
       <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
         <table class="w-full text-left text-xs border-collapse">
           <thead>
@@ -429,7 +472,6 @@
         </table>
       </div>
 
-      <!-- PO Footer -->
       <div class="p-3 bg-white border-t border-slate-200 flex items-center justify-between shrink-0">
         <div>
           <span class="text-[11px] text-slate-500 block">Total Item Masuk:</span>
@@ -447,7 +489,7 @@
   </div>
 
   <!-- MODAL: DAFTARKAN BARANG BARU -->
-  <div id="new-item-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4">
+  <div id="new-item-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[140] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-3.5">
       <div class="flex items-center justify-between border-b border-slate-100 pb-2">
         <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
@@ -493,18 +535,18 @@
 
       <div class="pt-2 flex gap-2">
         <button onclick="closeNewItemModal()" class="w-1/3 py-2 bg-slate-100 hover:bg-slate-200 font-semibold rounded-xl text-xs text-slate-700">Batal</button>
-        <button onclick="addNewProductToPOList()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow">Tambahkan ke PO</button>
+        <button onclick="addNewProductToPOList()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow">Tambahkan ke Masuk</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL: CHECKOUT & PEMBAYARAN KASIR -->
-  <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div id="checkout-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
           <i class="fa-solid fa-wallet text-emerald-600"></i>
-          <span>Pembayaran</span>
+          <span>Pembayaran Kasir</span>
         </h3>
         <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-slate-600 text-lg">
           <i class="fa-solid fa-xmark"></i>
@@ -559,7 +601,7 @@
     let poItems = [];
     let selectedCategory = 'ALL';
     let codeReader = null;
-    let currentScanTarget = 'CASHIER'; // 'CASHIER' atau 'PO'
+    let currentScanTarget = 'CASHIER';
     let lastScannedCode = '';
     let lastScanTimestamp = 0;
     const tenantId = 'toko_demo_01';
@@ -567,8 +609,20 @@
     const formatRupiah = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
     // =========================================================================
-    // 1. POP-UP TOAST NOTIFICATION
+    // 1. SIDEBAR TOGGLE & NOTIFIKASI TOAST
     // =========================================================================
+    function toggleSidebar(open = true) {
+      const drawer = document.getElementById('sidebar-drawer');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (open) {
+        backdrop.classList.remove('hidden');
+        drawer.classList.remove('-translate-x-full');
+      } else {
+        drawer.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
     function showToast(message, type = 'success') {
       const container = document.getElementById('toast-container');
       const toast = document.createElement('div');
@@ -582,19 +636,13 @@
 
       container.appendChild(toast);
 
-      // Animate in
-      setTimeout(() => {
-        toast.classList.remove('translate-y-2', 'opacity-0');
-      }, 50);
-
-      // Animate out & remove
+      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 50);
       setTimeout(() => {
         toast.classList.add('opacity-0', 'translate-x-4');
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
 
-    // Audio Beep
     function playBeepSound(type = 'success') {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -626,7 +674,7 @@
     }
 
     // =========================================================================
-    // 2. HARDWARE SCANNER LISTENER (USB / BLUETOOTH SCANNER)
+    // 2. HARDWARE SCANNER LISTENER (USB / BLUETOOTH)
     // =========================================================================
     let barcodeBuffer = '';
     let lastKeyTime = Date.now();
@@ -662,23 +710,18 @@
       const now = Date.now();
       const cleanCode = String(rawBarcode).trim().toLowerCase();
 
-      // Debounce: Hindari double trigger pada barcode yang sama dalam kurun 1.2 detik
       if (cleanCode === lastScannedCode && (now - lastScanTimestamp) < 1200) {
         return;
       }
       lastScannedCode = cleanCode;
       lastScanTimestamp = now;
 
-      // Cari Produk di Master Data
       const found = products.find(p => {
         const pBarcode = p.barcode ? String(p.barcode).trim().toLowerCase() : '';
         const pName = p.name ? String(p.name).trim().toLowerCase() : '';
         return pBarcode === cleanCode || pName === cleanCode;
       });
 
-      // -----------------------------------------------------------------------
-      // A. JIKA DI MENU KASIR
-      // -----------------------------------------------------------------------
       if (target === 'CASHIER') {
         if (!found) {
           playBeepSound('error');
@@ -702,7 +745,6 @@
           return;
         }
 
-        // Tambah Qty Otomatis & Kamera TETAP MENYALA
         addToCart(found.id);
         playBeepSound('success');
         triggerVisualFlash();
@@ -712,9 +754,6 @@
         return;
       }
 
-      // -----------------------------------------------------------------------
-      // B. JIKA DI MENU BARANG MASUK (PO)
-      // -----------------------------------------------------------------------
       if (target === 'PO') {
         if (found) {
           const existingInPO = poItems.find(item => item.id === found.id);
@@ -733,9 +772,8 @@
           renderPOTable();
           playBeepSound('success');
           triggerVisualFlash();
-          updateScannerInfoCard(`✅ ${found.name}`, `+1 Masuk PO (Total: ${existingInPO ? existingInPO.qty : 1} pcs)`);
+          updateScannerInfoCard(`✅ ${found.name}`, `+1 Masuk (Total: ${existingInPO ? existingInPO.qty : 1} pcs)`);
         } else {
-          // Barcode Baru -> Tutup Kamera dan Buka Form Daftarkan Produk Baru
           playBeepSound('error');
           if (source === 'CAMERA') closeContinuousCamera();
           openNewItemModal(rawBarcode);
@@ -816,7 +854,7 @@
     }
 
     // =========================================================================
-    // 4. NAVIGASI TAMPILAN VIEW (POS, MASTER PRODUK, RIWAYAT)
+    // 4. NAVIGASI TAMPILAN VIEW
     // =========================================================================
     function switchView(viewName) {
       document.getElementById('view-pos').classList.add('hidden');
@@ -824,32 +862,37 @@
       document.getElementById('view-history').classList.add('hidden');
       document.getElementById('view-po-history').classList.add('hidden');
 
-      // Reset button styles
-      ['nav-pos-btn', 'nav-prod-btn', 'nav-hist-btn', 'nav-pohist-btn'].forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.className = "px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5";
-      });
+      const pageTitle = document.getElementById('page-title');
+      const backPosBtn = document.getElementById('header-back-pos-btn');
+      const bottomPosNav = document.getElementById('bottom-nav-pos');
 
       if (viewName === 'POS') {
         document.getElementById('view-pos').classList.remove('hidden');
-        document.getElementById('nav-pos-btn').className = "px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm";
-      } else if (viewName === 'PRODUCTS') {
-        document.getElementById('view-products').classList.remove('hidden');
-        document.getElementById('nav-prod-btn').className = "px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm";
-        renderProductTable();
-      } else if (viewName === 'HISTORY') {
-        document.getElementById('view-history').classList.remove('hidden');
-        document.getElementById('nav-hist-btn').className = "px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm";
-        fetchTransactions();
-      } else if (viewName === 'PO_HISTORY') {
-        document.getElementById('view-po-history').classList.remove('hidden');
-        document.getElementById('nav-pohist-btn').className = "px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm";
-        fetchPOHistory();
+        pageTitle.innerText = "Posta POS";
+        backPosBtn.classList.add('hidden');
+        bottomPosNav.className = "flex flex-col items-center gap-1 text-emerald-600 transition flex-1";
+      } else {
+        backPosBtn.classList.remove('hidden');
+        bottomPosNav.className = "flex flex-col items-center gap-1 text-slate-500 hover:text-emerald-600 transition flex-1";
+
+        if (viewName === 'PRODUCTS') {
+          document.getElementById('view-products').classList.remove('hidden');
+          pageTitle.innerText = "Master Produk";
+          renderProductTable();
+        } else if (viewName === 'HISTORY') {
+          document.getElementById('view-history').classList.remove('hidden');
+          pageTitle.innerText = "Riwayat Transaksi Kasir";
+          fetchTransactions();
+        } else if (viewName === 'PO_HISTORY') {
+          document.getElementById('view-po-history').classList.remove('hidden');
+          pageTitle.innerText = "Riwayat Barang Masuk";
+          fetchPOHistory();
+        }
       }
     }
 
     // =========================================================================
-    // 5. MASTER PRODUK & KATALOG KASIR
+    // 5. MASTER DATA & KATALOG KASIR
     // =========================================================================
     async function fetchProducts() {
       try {
@@ -870,7 +913,6 @@
       }
     }
 
-    // Isi Dropdown Datalist untuk Barang Masuk (PO)
     function setupPODatalist() {
       const datalist = document.getElementById('master-products-datalist');
       datalist.innerHTML = products.map(p => `
@@ -927,7 +969,6 @@
 
     document.getElementById('search-input').addEventListener('input', renderProducts);
 
-    // Render Tabel Master Produk
     function renderProductTable() {
       const keyword = (document.getElementById('prod-table-search').value || '').toLowerCase();
       const tbody = document.getElementById('master-products-tbody');
@@ -960,7 +1001,7 @@
     }
 
     // =========================================================================
-    // 6. KERANJANG KASIR (DETAIL TRANSAKSI & EDIT QTY)
+    // 6. KERANJANG KASIR
     // =========================================================================
     function addToCart(productId) {
       const product = products.find(p => p.id === productId);
@@ -1016,16 +1057,13 @@
       updateCartUI();
     }
 
-    function toggleMobileCartDrawer() {
+    function toggleMobileCartDrawer(forceState = null) {
       const drawer = document.getElementById('mobile-cart-drawer');
-      const arrow = document.getElementById('drawer-arrow');
-      if (drawer.classList.contains('hidden')) {
-        drawer.classList.remove('hidden');
-        arrow.innerText = '▼ Tutup Detail';
-      } else {
+      if (forceState === false) {
         drawer.classList.add('hidden');
-        arrow.innerText = '▲ Buka Detail';
+        return;
       }
+      drawer.classList.toggle('hidden');
     }
 
     function updateCartUI() {
@@ -1067,16 +1105,17 @@
 
       document.getElementById('cart-total-qty').innerText = totalQty;
       document.getElementById('cart-total-price').innerText = formatRupiah(totalPrice);
-      document.getElementById('mobile-cart-badge').innerText = `${totalQty} item`;
-      document.getElementById('mobile-cart-total').innerText = formatRupiah(totalPrice);
+      document.getElementById('bottom-cart-badge').innerText = totalQty;
+      document.getElementById('mobile-drawer-total').innerText = formatRupiah(totalPrice);
 
       const hasItems = cart.length > 0;
       document.getElementById('btn-checkout').disabled = !hasItems;
-      document.getElementById('mobile-btn-checkout').disabled = !hasItems;
+      const mobCheckout = document.getElementById('mobile-btn-checkout');
+      if (mobCheckout) mobCheckout.disabled = !hasItems;
     }
 
     // =========================================================================
-    // 7. BARANG MASUK (PO LOGIC)
+    // 7. INPUT BARANG MASUK (PO LOGIC)
     // =========================================================================
     function openPOModal() {
       poItems = [];
@@ -1309,6 +1348,7 @@
         if (result.success) {
           showToast('Transaksi Berhasil Disimpan!');
           closeCheckoutModal();
+          toggleMobileCartDrawer(false);
           clearCart();
           fetchProducts();
         } else {
@@ -1323,7 +1363,7 @@
     }
 
     // =========================================================================
-    // 9. FETCH RIWAYAT LAPORAN (TRANSAKSI & PO)
+    // 9. AMBIL DATA LAPORAN & RIWAYAT (API)
     // =========================================================================
     async function fetchTransactions() {
       const tbody = document.getElementById('transactions-tbody');
@@ -1378,7 +1418,6 @@
       }
     }
 
-    // Inisialisasi Pertama
     fetchProducts();
   </script>
 </body>
