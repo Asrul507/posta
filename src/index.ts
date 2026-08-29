@@ -6,22 +6,20 @@ import { handleStockAdjust } from "./routes/stock";
 import { handleGetTransactions, handleGetPOHistory } from "./routes/reports";
 
 function extractSubdomain(hostname: string): string {
-  const host = hostname.toLowerCase().split(':')[0];
+  const host = hostname.toLowerCase().split(':')[0]; // hapus port
 
-  // Jika domain persis posta.gpro.my.id -> mode Superadmin
-  if (host === "posta.gpro.my.id") {
+  // Domain Superadmin / Developer
+  if (host === "posta.gpro.my.id" || host === "localhost" || host === "127.0.0.1") {
     return "posta";
   }
 
-  // Jika subdomain lain (misal: berkah.gpro.my.id)
   if (host.endsWith(".gpro.my.id")) {
-    const parts = host.replace(".gpro.my.id", "").split(".");
-    if (parts.length > 0 && parts[0] !== "" && parts[0] !== "www") {
-      return parts[0];
+    const sub = host.replace(".gpro.my.id", "");
+    if (sub && sub !== "www") {
+      return sub;
     }
   }
 
-  // Fallback lokal / dev
   return "posta";
 }
 
@@ -30,11 +28,35 @@ export default {
     const url = new URL(request.url);
     const currentSubdomain = extractSubdomain(url.hostname);
 
-    // =========================================================================
-    // 1. ENDPOINT KHUSUS DEVELOPER / SUPERADMIN (posta.gpro.my.id)
-    // =========================================================================
-    
-    // Ambil semua daftar tenant / toko
+    // 1. Endpoint Info Tenant Aktif / Cek Superadmin
+    if (url.pathname === "/api/tenant/info" && request.method === "GET") {
+      try {
+        if (currentSubdomain === "posta") {
+          return Response.json({
+            success: true,
+            is_admin: true,
+            data: { id: "admin", name: "Developer Dashboard", subdomain: "posta" }
+          });
+        }
+
+        const tenant = await env.DB.prepare(
+          "SELECT id, subdomain, name, address, phone FROM tenants WHERE subdomain = ? AND is_active = 1"
+        ).bind(currentSubdomain).first();
+
+        if (!tenant) {
+          return Response.json(
+            { success: false, error: `Toko '${currentSubdomain}' tidak ditemukan atau nonaktif.` },
+            { status: 404 }
+          );
+        }
+
+        return Response.json({ success: true, is_admin: false, data: tenant });
+      } catch (err: any) {
+        return Response.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
+
+    // 2. Endpoint Khusus Developer (List & Buat Toko)
     if (url.pathname === "/api/admin/tenants" && request.method === "GET") {
       try {
         const query = `
@@ -58,26 +80,16 @@ export default {
       }
     }
 
-    // Tambah Toko / Tenant Baru
     if (url.pathname === "/api/admin/tenants" && request.method === "POST") {
       try {
-        const payload: {
-          subdomain: string;
-          name: string;
-          address?: string;
-          phone?: string;
-        } = await request.json();
-
+        const payload: { subdomain: string; name: string; address?: string; phone?: string } = await request.json();
         const cleanSubdomain = payload.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
         if (!cleanSubdomain || !payload.name) {
           return Response.json({ success: false, error: "Subdomain dan Nama Toko wajib diisi" }, { status: 400 });
         }
 
-        // Cek apakah subdomain sudah terpakai
-        const existing = await env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ?")
-          .bind(cleanSubdomain)
-          .first();
-
+        const existing = await env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ?").bind(cleanSubdomain).first();
         if (existing) {
           return Response.json({ success: false, error: `Subdomain '${cleanSubdomain}' sudah digunakan.` }, { status: 400 });
         }
@@ -91,48 +103,14 @@ export default {
         return Response.json({
           success: true,
           message: `Toko '${payload.name}' berhasil dibuat!`,
-          subdomain: cleanSubdomain,
-          url: `https://${cleanSubdomain}.gpro.my.id`
+          subdomain: cleanSubdomain
         });
       } catch (err: any) {
         return Response.json({ success: false, error: err.message }, { status: 500 });
       }
     }
 
-    // =========================================================================
-    // 2. ENDPOINT INFORMASI TOKO (TENANT SESSION)
-    // =========================================================================
-    if (url.pathname === "/api/tenant/info" && request.method === "GET") {
-      try {
-        // Jika sedang di domain utama developer
-        if (currentSubdomain === "posta") {
-          return Response.json({
-            success: true,
-            is_admin: true,
-            data: { id: "admin", name: "Developer Dashboard", subdomain: "posta" }
-          });
-        }
-
-        const tenant = await env.DB.prepare(
-          "SELECT id, subdomain, name, address, phone FROM tenants WHERE subdomain = ? AND is_active = 1"
-        ).bind(currentSubdomain).first();
-
-        if (!tenant) {
-          return Response.json(
-            { success: false, error: `Toko '${currentSubdomain}' tidak terdaftar atau sedang nonaktif.` },
-            { status: 404 }
-          );
-        }
-
-        return Response.json({ success: true, is_admin: false, data: tenant });
-      } catch (err: any) {
-        return Response.json({ success: false, error: err.message }, { status: 500 });
-      }
-    }
-
-    // =========================================================================
-    // 3. API OPERASIONAL KASIR
-    // =========================================================================
+    // 3. API Operasional Kasir
     if (url.pathname === "/api/products" && request.method === "GET") {
       return handleGetProducts(request, env);
     }
