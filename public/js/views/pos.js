@@ -2,25 +2,32 @@ import { state, formatRupiah, showToast } from '../state.js';
 import { API } from '../api.js';
 
 export async function loadProducts() {
+  const grid = document.getElementById('product-grid');
   try {
     const result = await API.getProducts();
-    if (result.success && result.data.length > 0) {
+    if (result.success && result.data && result.data.length > 0) {
       state.products = result.data;
       renderCategories();
       renderProductGrid();
       renderProductTable();
       setupPODatalist();
     } else {
-      document.getElementById('product-grid').innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Belum ada produk aktif.</div>`;
+      if (grid) {
+        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Belum ada produk aktif.</div>`;
+      }
     }
   } catch (err) {
-    document.getElementById('product-grid').innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat katalog barang.</div>`;
+    if (grid) {
+      grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat katalog barang.</div>`;
+    }
   }
 }
 
 export function renderCategories() {
-  const categories = ['ALL', ...new Set(state.products.map(p => p.category_name).filter(Boolean))];
   const container = document.getElementById('category-container');
+  if (!container) return;
+
+  const categories = ['ALL', ...new Set(state.products.map(p => p.category_name).filter(Boolean))];
   container.innerHTML = categories.map(cat => `
     <button onclick="window.filterCategory('${cat}')" 
       class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${state.selectedCategory === cat ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} shrink-0">
@@ -36,6 +43,9 @@ export function filterCategory(cat) {
 }
 
 export function renderProductGrid() {
+  const grid = document.getElementById('product-grid');
+  if (!grid) return;
+
   const keyword = (document.getElementById('search-input')?.value || '').toLowerCase();
   const filtered = state.products.filter(p => {
     const matchCat = state.selectedCategory === 'ALL' || p.category_name === state.selectedCategory;
@@ -43,7 +53,6 @@ export function renderProductGrid() {
     return matchCat && matchSearch;
   });
 
-  const grid = document.getElementById('product-grid');
   if (filtered.length === 0) {
     grid.innerHTML = `<div class="col-span-full py-8 text-center text-slate-400 text-xs">Produk tidak ditemukan</div>`;
     return;
@@ -106,22 +115,37 @@ export function updateCartUI() {
     </div>
   `;
 
-  if (state.cart.length === 0) {
-    listDesktop.innerHTML = `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>`;
-    listMobile.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>`;
-  } else {
-    listDesktop.innerHTML = state.cart.map(renderItemHtml).join('');
-    listMobile.innerHTML = state.cart.map(renderItemHtml).join('');
+  if (listDesktop) {
+    listDesktop.innerHTML = state.cart.length === 0 
+      ? `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>` 
+      : state.cart.map(renderItemHtml).join('');
   }
 
-  document.getElementById('cart-total-qty').innerText = totalQty;
-  document.getElementById('cart-total-price').innerText = formatRupiah(totalPrice);
-  document.getElementById('bottom-cart-badge').innerText = totalQty;
-  document.getElementById('mobile-cart-badge').innerText = `${totalQty} item`;
-  document.getElementById('mobile-cart-total').innerText = formatRupiah(totalPrice);
+  if (listMobile) {
+    listMobile.innerHTML = state.cart.length === 0 
+      ? `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>` 
+      : state.cart.map(renderItemHtml).join('');
+  }
+
+  const elTotalQty = document.getElementById('cart-total-qty');
+  if (elTotalQty) elTotalQty.innerText = totalQty;
+
+  const elTotalPrice = document.getElementById('cart-total-price');
+  if (elTotalPrice) elTotalPrice.innerText = formatRupiah(totalPrice);
+
+  const elBottomBadge = document.getElementById('bottom-cart-badge');
+  if (elBottomBadge) elBottomBadge.innerText = totalQty;
+
+  const elMobBadge = document.getElementById('mobile-cart-badge');
+  if (elMobBadge) elMobBadge.innerText = `${totalQty} item`;
+
+  const elMobTotal = document.getElementById('mobile-cart-total');
+  if (elMobTotal) elMobTotal.innerText = formatRupiah(totalPrice);
 
   const hasItems = state.cart.length > 0;
-  document.getElementById('btn-checkout').disabled = !hasItems;
+  const btnCheckout = document.getElementById('btn-checkout');
+  if (btnCheckout) btnCheckout.disabled = !hasItems;
+
   const mobBtn = document.getElementById('mobile-btn-checkout');
   if (mobBtn) mobBtn.disabled = !hasItems;
 }
@@ -172,10 +196,10 @@ export function clearCart() {
 }
 
 export function renderProductTable() {
-  const keyword = (document.getElementById('prod-table-search')?.value || '').toLowerCase();
   const tbody = document.getElementById('master-products-tbody');
   if (!tbody) return;
 
+  const keyword = (document.getElementById('prod-table-search')?.value || '').toLowerCase();
   const filtered = state.products.filter(p => 
     p.name.toLowerCase().includes(keyword) || 
     (p.barcode && String(p.barcode).toLowerCase().includes(keyword)) ||
