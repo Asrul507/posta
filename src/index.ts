@@ -5,8 +5,63 @@ import { handleSubmitPO } from "./routes/po";
 import { handleStockAdjust } from "./routes/stock";
 import { handleGetTransactions, handleGetPOHistory } from "./routes/reports";
 
-// =========================================================================
-    // POST /api/auth/login (Handler Login)
+const JWT_SECRET = "posta-secure-jwt-secret-key-2026";
+
+// Helper Hash Password SHA-256
+async function hashPassword(password: string, salt: string): Promise<string> {
+  const enc = new TextEncoder();
+  const data = enc.encode(password + salt);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Helper Simple JWT Token Generator
+async function createJWT(payload: object): Promise<string> {
+  const header = { alg: "HS256", typ: "JWT" };
+  const encHeader = btoa(JSON.stringify(header));
+  const encPayload = btoa(JSON.stringify({ ...payload, exp: Math.floor(Date.now() / 1000) + (7 * 24 * 3600) }));
+  const signatureInput = `${encHeader}.${encPayload}`;
+  
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(JWT_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sigBuffer = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signatureInput));
+  const encSig = btoa(String.fromCharCode(...new Uint8Array(sigBuffer)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return `${signatureInput}.${encSig}`;
+}
+
+// Helper Ekstraksi Subdomain
+function extractSubdomain(hostname: string): string {
+  const host = hostname.toLowerCase().split(':')[0];
+
+  if (host === "posta.gpro.my.id" || host === "localhost" || host === "127.0.0.1") {
+    return "posta";
+  }
+
+  if (host.endsWith(".gpro.my.id")) {
+    const sub = host.replace(".gpro.my.id", "");
+    if (sub && sub !== "www") {
+      return sub;
+    }
+  }
+
+  return "posta";
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const currentSubdomain = extractSubdomain(url.hostname);
+
+    // =========================================================================
+    // 1. ENDPOINT AUTHENTICATION (LOGIN)
     // =========================================================================
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       try {
@@ -69,30 +124,9 @@ import { handleGetTransactions, handleGetPOHistory } from "./routes/reports";
       }
     }
 
-function extractSubdomain(hostname: string): string {
-  const host = hostname.toLowerCase().split(':')[0]; // hapus port
-
-  // Domain Superadmin / Developer
-  if (host === "posta.gpro.my.id" || host === "localhost" || host === "127.0.0.1") {
-    return "posta";
-  }
-
-  if (host.endsWith(".gpro.my.id")) {
-    const sub = host.replace(".gpro.my.id", "");
-    if (sub && sub !== "www") {
-      return sub;
-    }
-  }
-
-  return "posta";
-}
-
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-    const currentSubdomain = extractSubdomain(url.hostname);
-
-    // 1. Endpoint Info Tenant Aktif / Cek Superadmin
+    // =========================================================================
+    // 2. ENDPOINT INFO TENANT
+    // =========================================================================
     if (url.pathname === "/api/tenant/info" && request.method === "GET") {
       try {
         if (currentSubdomain === "posta") {
@@ -120,7 +154,9 @@ export default {
       }
     }
 
-    // 2. Endpoint Khusus Developer (List & Buat Toko)
+    // =========================================================================
+    // 3. ENDPOINT DEVELOPER HUB (SUPERADMIN TENANTS)
+    // =========================================================================
     if (url.pathname === "/api/admin/tenants" && request.method === "GET") {
       try {
         const query = `
@@ -164,9 +200,17 @@ export default {
           VALUES (?, ?, ?, ?, ?, 1)
         `).bind(tenantId, cleanSubdomain, payload.name, payload.address || "", payload.phone || "").run();
 
+        // Buatkan akun OWNER default untuk toko baru (user: owner / pass: 123456)
+        const salt = "posta_salt_2026";
+        const ownerPassHash = await hashPassword("123456", salt);
+        await env.DB.prepare(`
+          INSERT INTO users (id, tenant_id, username, password_hash, salt, name, role, is_active)
+          VALUES (?, ?, 'owner', ?, ?, ?, 'OWNER', 1)
+        `).bind("usr_" + Date.now(), tenantId, ownerPassHash, salt, "Owner " + payload.name).run();
+
         return Response.json({
           success: true,
-          message: `Toko '${payload.name}' berhasil dibuat!`,
+          message: `Toko '${payload.name}' berhasil dibuat! Akun default owner dibuat (user: owner / pass: 123456).`,
           subdomain: cleanSubdomain
         });
       } catch (err: any) {
@@ -174,7 +218,9 @@ export default {
       }
     }
 
-    // 3. API Operasional Kasir
+    // =========================================================================
+    // 4. API OPERASIONAL KASIR
+    // =========================================================================
     if (url.pathname === "/api/products" && request.method === "GET") {
       return handleGetProducts(request, env);
     }
@@ -194,7 +240,9 @@ export default {
       return handleGetPOHistory(request, env);
     }
 
-    // 4. Static Assets Frontend
+    // =========================================================================
+    // 5. STATIC ASSETS FRONTEND
+    // =========================================================================
     return env.ASSETS.fetch(request);
   }
 };
