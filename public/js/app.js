@@ -5,7 +5,7 @@ import * as po from './views/po.js';
 import * as reports from './views/reports.js';
 import * as scanner from './scanner.js';
 
-// Ekspos ke window agar atribut onclick di HTML tetap bekerja langsung
+// Ekspos fungsi ke objek window agar tombol HTML onclick tetap berjalan
 Object.assign(window, {
   toggleSidebar,
   switchView,
@@ -17,11 +17,17 @@ Object.assign(window, {
   ...scanner
 });
 
-// Jalankan saat halaman siap
+// Jalankan inisialisasi saat dokumen selesai dimuat
 document.addEventListener('DOMContentLoaded', () => {
-  pos.loadProducts();
-  scanner.initHardwareScannerListener();
+  if (typeof pos.loadProducts === 'function') {
+    pos.loadProducts();
+  }
+  if (typeof scanner.initHardwareScannerListener === 'function') {
+    scanner.initHardwareScannerListener();
+  }
 
   const searchInput = document.getElementById('search-input');
-  if (searchInput) searchInput.addEventListener('input', pos.renderProductGrid);
+  if (searchInput) {
+    searchInput.addEventListener('input', pos.renderProductGrid);
+  }
 });
