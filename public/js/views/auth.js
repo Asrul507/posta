@@ -1,7 +1,7 @@
 import { state, showToast } from '../state.js';
+import { updateHeaderShiftStatus } from './shifts.js';
 
 export async function checkAuthSession(tenantInfo) {
-  // 1. Cek apakah ada SSO Token dari Superadmin di URL
   const urlParams = new URLSearchParams(window.location.search);
   const ssoToken = urlParams.get('sso_token');
 
@@ -32,17 +32,18 @@ export async function checkAuthSession(tenantInfo) {
   try {
     const user = JSON.parse(userJson);
     
-    // Validasi tenant
     if (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id && user.role !== 'SUPERADMIN') {
       logout();
       return false;
     }
 
     state.currentUser = user;
+    state.tenantId = tenantInfo.id;
     applyRolePermissions(user);
+    updateHeaderShiftStatus();
+
     if (loginOverlay) loginOverlay.classList.add('hidden');
 
-    // Otomatis cek apakah kasir punya shift aktif, jika tidak maka modal Buka Shift muncul
     if (user.role !== 'SUPERADMIN' && typeof window.checkActiveShift === 'function') {
       window.checkActiveShift();
     }
@@ -79,9 +80,11 @@ export async function submitLogin() {
       localStorage.setItem('posta_token', result.token);
       localStorage.setItem('posta_user', JSON.stringify(result.user));
       state.currentUser = result.user;
+      state.tenantId = result.user.tenant_id;
 
       document.getElementById('login-overlay').classList.add('hidden');
       applyRolePermissions(result.user);
+      updateHeaderShiftStatus();
       showToast(`Selamat datang, ${result.user.name}!`);
 
       if (result.user.role === 'SUPERADMIN') {
@@ -89,11 +92,7 @@ export async function submitLogin() {
         if (typeof window.loadAdminTenants === 'function') window.loadAdminTenants();
       } else {
         if (typeof window.loadProducts === 'function') window.loadProducts();
-        
-        // Panggil pengecekan shift saat login berhasil
-        if (typeof window.checkActiveShift === 'function') {
-          window.checkActiveShift();
-        }
+        if (typeof window.checkActiveShift === 'function') window.checkActiveShift();
       }
     } else {
       showToast(result.error || 'Username atau password salah', 'error');
@@ -128,7 +127,6 @@ export function applyRolePermissions(user) {
   const nameLabels = document.querySelectorAll('.current-user-name');
   nameLabels.forEach(el => el.innerText = `${user.name} (${user.role})`);
 
-  // Jika CASHIER: Sembunyikan menu Master Produk, Riwayat & Laporan
   if (user.role === 'CASHIER') {
     const restricted = document.querySelectorAll('.role-admin-only');
     restricted.forEach(el => el.classList.add('hidden'));
