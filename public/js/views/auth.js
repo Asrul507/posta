@@ -1,7 +1,24 @@
 import { state, showToast } from '../state.js';
 
-// Cek Sesi User saat awal buka
+// Di public/js/views/auth.js
 export async function checkAuthSession(tenantInfo) {
+  // 1. Cek apakah ada SSO Token dari Superadmin di URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const ssoToken = urlParams.get('sso_token');
+
+  if (ssoToken) {
+    try {
+      const parts = ssoToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        localStorage.setItem('posta_token', ssoToken);
+        localStorage.setItem('posta_user', JSON.stringify(payload));
+        // Bersihkan token dari URL address bar agar rapi
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (_) {}
+  }
+
   const token = localStorage.getItem('posta_token');
   const userJson = localStorage.getItem('posta_user');
   const loginOverlay = document.getElementById('login-overlay');
@@ -9,26 +26,6 @@ export async function checkAuthSession(tenantInfo) {
   const domainSpan = document.getElementById('login-current-domain');
   if (domainSpan) domainSpan.innerText = window.location.hostname;
 
-  // Sesuaikan tema form login sesuai tipe domain
-  if (tenantInfo.is_admin) {
-    // Superadmin theme
-    document.getElementById('login-store-name').innerText = 'Posta Management Hub';
-    document.getElementById('login-store-sub').innerText = 'Portal Pengembang & Superadmin';
-    const iconWrap = document.getElementById('login-icon-wrapper');
-    if (iconWrap) {
-      iconWrap.className = 'w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl mx-auto shadow-lg shadow-indigo-900/40';
-    }
-    const btnSubmit = document.getElementById('btn-submit-login');
-    if (btnSubmit) {
-      btnSubmit.className = 'w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 active:scale-98';
-    }
-  } else {
-    // Toko Kasir theme
-    document.getElementById('login-store-name').innerText = tenantInfo.name || 'Posta POS';
-    document.getElementById('login-store-sub').innerText = `Kasir Toko - ${tenantInfo.subdomain}.gpro.my.id`;
-  }
-
-  // Jika belum login atau token hilang
   if (!token || !userJson) {
     if (loginOverlay) loginOverlay.classList.remove('hidden');
     return false;
@@ -37,14 +34,8 @@ export async function checkAuthSession(tenantInfo) {
   try {
     const user = JSON.parse(userJson);
     
-    // Validasi: Superadmin hanya boleh buka di posta.gpro.my.id
-    if (tenantInfo.is_admin && user.role !== 'SUPERADMIN') {
-      logout();
-      return false;
-    }
-
-    // Validasi: Kasir toko biasa tidak boleh buka tenant lain
-    if (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id) {
+    // Superadmin yang sedang impersonate toko
+    if (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id && user.role !== 'SUPERADMIN') {
       logout();
       return false;
     }
