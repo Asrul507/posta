@@ -1,0 +1,59 @@
+<div id="sidebar-backdrop" onclick="window.toggleSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[110] hidden transition-opacity"></div>
+<aside id="sidebar-drawer" class="fixed top-0 bottom-0 left-0 w-72 bg-white shadow-2xl z-[120] transform -translate-x-full transition-transform duration-300 flex flex-col justify-between">
+  <div>
+    <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+          <i class="fa-solid fa-cash-register"></i>
+        </div>
+        <div>
+          <h2 class="font-bold text-sm text-slate-900 leading-tight">Posta POS</h2>
+          <span class="text-[11px] text-slate-500 font-medium">Navigasi Utama</span>
+        </div>
+      </div>
+      <button onclick="window.toggleSidebar(false)" class="w-8 h-8 rounded-lg hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="p-3 space-y-1 text-xs font-bold text-slate-700">
+      <div class="px-3 py-2 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Transaksi & Kasir</div>
+      <button onclick="window.switchView('POS'); window.toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition">
+        <i class="fa-solid fa-cart-shopping w-4 text-emerald-600 text-sm"></i>
+        <span>Mesin Kasir (POS)</span>
+      </button>
+      <button onclick="window.openContinuousCamera('CASHIER'); window.toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition">
+        <i class="fa-solid fa-barcode w-4 text-emerald-600 text-sm"></i>
+        <span>Scan Barcode Kasir</span>
+      </button>
+      <button onclick="window.openPOModal(); window.toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition">
+        <i class="fa-solid fa-box-open w-4 text-emerald-600 text-sm"></i>
+        <span>Input Barang Masuk</span>
+      </button>
+
+      <div class="role-admin-only pt-4 px-3 py-2 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Data & Laporan</div>
+      <button onclick="window.switchView('PRODUCTS'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+        <i class="fa-solid fa-boxes-stacked w-4 text-slate-500 text-sm"></i>
+        <span>Daftar Master Produk</span>
+      </button>
+      <button onclick="window.switchView('HISTORY'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+        <i class="fa-solid fa-receipt w-4 text-slate-500 text-sm"></i>
+        <span>Riwayat Transaksi Kasir</span>
+      </button>
+      <button onclick="window.switchView('PO_HISTORY'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+        <i class="fa-solid fa-truck-ramp-box w-4 text-slate-500 text-sm"></i>
+        <span>Riwayat Barang Masuk</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="p-4 border-t border-slate-200 bg-slate-50 text-[11px] text-slate-500 flex items-center justify-between">
+    <div>
+      <div class="font-bold text-slate-800 current-user-name">Kasir Toko</div>
+      <div class="text-[10px]">Cloudflare Worker & D1</div>
+    </div>
+    <button onclick="window.logout()" title="Logout" class="p-2 hover:bg-rose-100 text-rose-600 rounded-lg">
+      <i class="fa-solid fa-right-from-bracket"></i>
+    </button>
+  </div>
+</aside>
