@@ -7,6 +7,8 @@ import * as reports from './views/reports.js';
 import * as scanner from './scanner.js';
 import * as admin from './views/admin.js';
 import * as auth from './views/auth.js';
+import * as shifts from './views/shifts.js';
+import { checkActiveShift } from './views/shifts.js';
 
 // 1. Daftarkan semua modul ke window (cukup 1 kali)
 Object.assign(window, {
@@ -19,7 +21,8 @@ Object.assign(window, {
   ...reports,
   ...scanner,
   ...admin,
-  ...auth
+  ...auth,
+  ...shifts
 });
 
 // 2. Inisialisasi: Tunggu komponen HTML termuat SEMPURNA sebelum menjalankan logic
