@@ -1,0 +1,72 @@
+<!-- RIWAYAT TRANSAKSI KASIR -->
+<div id="view-history" class="flex-1 hidden flex-col bg-slate-50 p-3 sm:p-4 overflow-hidden pb-20 md:pb-4">
+  <div class="bg-white rounded-2xl border border-slate-200 flex-1 flex flex-col overflow-hidden shadow-sm">
+    <div class="p-3 sm:p-4 border-b border-slate-200 flex justify-between items-center">
+      <div>
+        <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+          <i class="fa-solid fa-receipt text-emerald-600"></i>
+          <span>Riwayat Transaksi Kasir</span>
+        </h2>
+        <span class="text-[11px] text-slate-500">Daftar nota belanja tersimpan</span>
+      </div>
+      <button onclick="window.fetchTransactions()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>Segarkan</span>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-auto p-3 sm:p-4">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+            <th class="py-2.5 px-3">Waktu</th>
+            <th class="py-2.5 px-3">No Invoice</th>
+            <th class="py-2.5 px-3">Kasir</th>
+            <th class="py-2.5 px-3 text-right">Total Tagihan</th>
+            <th class="py-2.5 px-3 text-right">Bayar</th>
+            <th class="py-2.5 px-3 text-right">Kembalian</th>
+          </tr>
+        </thead>
+        <tbody id="transactions-tbody" class="divide-y divide-slate-100">
+          <tr><td colspan="6" class="text-center py-8 text-slate-400">Memuat riwayat transaksi...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- RIWAYAT BARANG MASUK (PO) -->
+<div id="view-po-history" class="flex-1 hidden flex-col bg-slate-50 p-3 sm:p-4 overflow-hidden pb-20 md:pb-4">
+  <div class="bg-white rounded-2xl border border-slate-200 flex-1 flex flex-col overflow-hidden shadow-sm">
+    <div class="p-3 sm:p-4 border-b border-slate-200 flex justify-between items-center">
+      <div>
+        <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+          <i class="fa-solid fa-truck-ramp-box text-emerald-600"></i>
+          <span>Riwayat Barang Masuk</span>
+        </h2>
+        <span class="text-[11px] text-slate-500">Log dokumen penerimaan stok dari supplier</span>
+      </div>
+      <button onclick="window.fetchPOHistory()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>Segarkan</span>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-auto p-3 sm:p-4">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+            <th class="py-2.5 px-3">Waktu Masuk</th>
+            <th class="py-2.5 px-3">Nomor PO</th>
+            <th class="py-2.5 px-3">Supplier</th>
+            <th class="py-2.5 px-3">Catatan</th>
+            <th class="py-2.5 px-3 text-center">Total Item Masuk</th>
+          </tr>
+        </thead>
+        <tbody id="pohist-tbody" class="divide-y divide-slate-100">
+          <tr><td colspan="5" class="text-center py-8 text-slate-400">Memuat riwayat barang masuk...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
