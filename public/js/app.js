@@ -8,9 +8,8 @@ import * as scanner from './scanner.js';
 import * as admin from './views/admin.js';
 import * as auth from './views/auth.js';
 import * as shifts from './views/shifts.js';
-import { checkActiveShift } from './views/shifts.js';
 
-// 1. Daftarkan semua modul ke window (cukup 1 kali)
+// 1. Daftarkan semua modul ke window
 Object.assign(window, {
   toggleSidebar,
   switchView,
@@ -35,6 +34,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       loadComponent('comp-view-pos', '/components/view-pos.html'),
       loadComponent('comp-view-products', '/components/view-products.html'),
       loadComponent('comp-view-history', '/components/view-history.html'),
+      loadComponent('comp-view-reports', '/components/view-reports.html'),
       loadComponent('comp-view-admin', '/components/view-admin.html'),
       loadComponent('comp-modals', '/components/modals.html')
     ]);
@@ -42,7 +42,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.error("Gagal memuat komponen HTML:", err);
   }
 
-  // Setelah seluruh komponen HTML masuk ke DOM, jalankan logic kasir
+  // Jalankan inisialisasi kasir & scanner hardware
   try {
     pos.loadProducts();
     scanner.initHardwareScannerListener();
