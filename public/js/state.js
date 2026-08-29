@@ -1,9 +1,10 @@
 export const state = {
   tenantId: null,
   tenantInfo: null,
+  currentUser: null,
+  currentShift: null, // Menyimpan sesi shift aktif
   products: [],
   cart: [],
-  poItems: [],
   selectedCategory: 'ALL'
 };
 
