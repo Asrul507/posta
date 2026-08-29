@@ -10,7 +10,7 @@ export async function loadAdminTenants() {
     const res = await fetch('/api/admin/tenants');
     const result = await res.json();
 
-    if (result.success && result.data.length > 0) {
+    if (result.success && result.data && result.data.length > 0) {
       grid.innerHTML = result.data.map(t => {
         const tenantUrl = `https://${t.subdomain}.gpro.my.id`;
         return `
@@ -22,7 +22,7 @@ export async function loadAdminTenants() {
               </div>
               <h3 class="font-extrabold text-base text-white truncate">${t.name}</h3>
               <p class="text-xs text-slate-400 truncate mt-0.5">${t.address || 'Alamat belum diatur'}</p>
-              
+
               <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-900 text-xs">
                 <div class="bg-slate-900/60 p-2 rounded-xl text-center">
                   <span class="text-[10px] text-slate-500 block uppercase font-bold">Produk</span>
@@ -35,8 +35,8 @@ export async function loadAdminTenants() {
               </div>
             </div>
 
-            <div class="mt-4 pt-3 flex gap-2">
-              <a href="${tenantUrl}" target="_blank" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs text-center flex items-center justify-center gap-1.5 shadow transition">
+            <div class="mt-4 pt-3">
+              <a href="${tenantUrl}" target="_blank" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs text-center flex items-center justify-center gap-1.5 shadow transition">
                 <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
                 <span>Buka Mesin Kasir</span>
               </a>
@@ -45,7 +45,7 @@ export async function loadAdminTenants() {
         `;
       }).join('');
     } else {
-      grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-sm">Belum ada toko yang terdaftar. Klik tombol Tambah Toko Baru.</div>`;
+      grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-500 text-sm">Belum ada toko yang terdaftar. Klik tombol Tambah Toko Baru di atas.</div>`;
     }
   } catch (err) {
     grid.innerHTML = `<div class="col-span-full py-16 text-center text-rose-500 text-sm">Gagal memuat data toko.</div>`;
