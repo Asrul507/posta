@@ -66,7 +66,10 @@ export default {
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       try {
         const { username, password } = await request.json() as any;
-        if (!username || !password) {
+        const cleanUser = (username || "").trim().toLowerCase();
+        const inputPass = (password || "").trim();
+
+        if (!cleanUser || !inputPass) {
           return Response.json({ success: false, error: "Username dan password wajib diisi" }, { status: 400 });
         }
 
@@ -75,7 +78,7 @@ export default {
           // Login Superadmin
           user = await env.DB.prepare(
             "SELECT * FROM users WHERE username = ? AND role = 'SUPERADMIN' AND is_active = 1"
-          ).bind(username.trim().toLowerCase()).first();
+          ).bind(cleanUser).first();
         } else {
           // Login Toko / Tenant
           const tenant = await env.DB.prepare(
@@ -83,21 +86,33 @@ export default {
           ).bind(currentSubdomain).first();
 
           if (!tenant) {
-            return Response.json({ success: false, error: "Toko tidak terdaftar atau nonaktif." }, { status: 404 });
+            return Response.json({ success: false, error: `Toko '${currentSubdomain}' tidak ditemukan atau nonaktif.` }, { status: 404 });
           }
 
           user = await env.DB.prepare(
             "SELECT * FROM users WHERE username = ? AND tenant_id = ? AND is_active = 1"
-          ).bind(username.trim().toLowerCase(), tenant.id).first();
+          ).bind(cleanUser, tenant.id).first();
         }
 
         if (!user) {
-          return Response.json({ success: false, error: "Username atau password salah." }, { status: 401 });
+          return Response.json({ success: false, error: "Username tidak terdaftar." }, { status: 401 });
         }
 
-        const inputHash = await hashPassword(password, user.salt || "posta_salt_2026");
-        if (inputHash !== user.password_hash) {
-          return Response.json({ success: false, error: "Username atau password salah." }, { status: 401 });
+        const salt = user.salt || "posta_salt_2026";
+        const computedHash = await hashPassword(inputPass, salt);
+
+        // Cocokkan dengan Hash ATAU cocok dengan teks langsung
+        const isMatch = (computedHash === user.password_hash) || (inputPass === user.password_hash);
+
+        if (!isMatch) {
+          return Response.json({ success: false, error: "Password salah." }, { status: 401 });
+        }
+
+        // Jika password di database masih plain, otomatis update jadi hash yang aman
+        if (inputPass === user.password_hash) {
+          await env.DB.prepare("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?")
+            .bind(computedHash, salt, user.id)
+            .run();
         }
 
         const token = await createJWT({
@@ -200,7 +215,6 @@ export default {
           VALUES (?, ?, ?, ?, ?, 1)
         `).bind(tenantId, cleanSubdomain, payload.name, payload.address || "", payload.phone || "").run();
 
-        // Buatkan akun OWNER default untuk toko baru (user: owner / pass: 123456)
         const salt = "posta_salt_2026";
         const ownerPassHash = await hashPassword("123456", salt);
         await env.DB.prepare(`
