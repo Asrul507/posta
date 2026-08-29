@@ -8,7 +8,13 @@ function parseDate(dStr) {
   return isNaN(d.getTime()) ? dStr : d.toLocaleString('id-ID');
 }
 
-// Riwayat Transaksi Biasa
+function getActiveTenantId() {
+  return state.tenantId || state.currentUser?.tenant_id || (state.tenantInfo?.id !== 'admin' ? state.tenantInfo?.id : null);
+}
+
+// -------------------------------------------------------------------------
+// 1. RIWAYAT TRANSAKSI & PO
+// -------------------------------------------------------------------------
 export async function fetchTransactions() {
   const tbody = document.getElementById('transactions-tbody');
   if (!tbody) return;
@@ -16,7 +22,7 @@ export async function fetchTransactions() {
 
   try {
     const result = await API.getTransactions();
-    if (result.success && result.data.length > 0) {
+    if (result.success && result.data && result.data.length > 0) {
       tbody.innerHTML = result.data.map(t => `
         <tr class="hover:bg-slate-50">
           <td class="py-2.5 px-3 text-slate-500 font-medium">${parseDate(t.created_at)}</td>
@@ -35,7 +41,6 @@ export async function fetchTransactions() {
   }
 }
 
-// Riwayat Barang Masuk (PO)
 export async function fetchPOHistory() {
   const tbody = document.getElementById('pohist-tbody');
   if (!tbody) return;
@@ -43,7 +48,7 @@ export async function fetchPOHistory() {
 
   try {
     const result = await API.getPOHistory();
-    if (result.success && result.data.length > 0) {
+    if (result.success && result.data && result.data.length > 0) {
       tbody.innerHTML = result.data.map(p => `
         <tr class="hover:bg-slate-50">
           <td class="py-2.5 px-3 text-slate-500 font-medium">${parseDate(p.created_at)}</td>
@@ -61,33 +66,39 @@ export async function fetchPOHistory() {
   }
 }
 
-// =========================================================================
-// 1. LAPORAN HARIAN (Z-REPORT) & REKAP SHIFT
-// =========================================================================
+// -------------------------------------------------------------------------
+// 2. LAPORAN HARIAN (Z-REPORT & REKAP SHIFT)
+// -------------------------------------------------------------------------
 export async function loadDailyReport() {
+  const tenantId = getActiveTenantId();
   const dateInput = document.getElementById('daily-report-date');
   if (dateInput && !dateInput.value) {
     dateInput.value = new Date().toISOString().split('T')[0];
   }
-  const selectedDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+  const selectedDate = dateInput?.value || new Date().toISOString().split('T')[0];
+
+  if (!tenantId) {
+    console.warn("Tenant ID tidak ditemukan untuk laporan harian.");
+    return;
+  }
 
   try {
-    const res = await fetch(`/api/reports/daily?tenant_id=${state.tenantId}&date=${selectedDate}`);
+    const res = await fetch(`/api/reports/daily?tenant_id=${tenantId}&date=${selectedDate}`);
     const result = await res.json();
 
     if (result.success) {
-      const sum = result.summary;
+      const sum = result.summary || {};
       const elSales = document.getElementById('daily-total-sales');
       const elTx = document.getElementById('daily-tx-count');
       const elProfit = document.getElementById('daily-gross-profit');
       const elMargin = document.getElementById('daily-margin-pct');
       const elCogs = document.getElementById('daily-total-cogs');
 
-      if (elSales) elSales.innerText = formatRupiah(sum.total_sales);
-      if (elTx) elTx.innerText = `${sum.total_transactions} Transaksi Selesai`;
-      if (elProfit) elProfit.innerText = formatRupiah(sum.gross_profit);
-      if (elMargin) elMargin.innerText = `Margin: ${sum.profit_margin_pct}%`;
-      if (elCogs) elCogs.innerText = formatRupiah(sum.total_cogs);
+      if (elSales) elSales.innerText = formatRupiah(sum.total_sales || 0);
+      if (elTx) elTx.innerText = `${sum.total_transactions || 0} Transaksi Selesai`;
+      if (elProfit) elProfit.innerText = formatRupiah(sum.gross_profit || 0);
+      if (elMargin) elMargin.innerText = `Margin: ${sum.profit_margin_pct || 0}%`;
+      if (elCogs) elCogs.innerText = formatRupiah(sum.total_cogs || 0);
 
       // Hitung tunai vs non-tunai
       let totalCash = 0;
@@ -97,11 +108,14 @@ export async function loadDailyReport() {
       const elCash = document.getElementById('daily-cash-sales');
       const elNonCash = document.getElementById('daily-noncash-sales');
       if (elCash) elCash.innerText = formatRupiah(totalCash);
-      if (elNonCash) elNonCash.innerText = formatRupiah(Math.max(0, sum.total_sales - totalCash));
+      if (elNonCash) elNonCash.innerText = formatRupiah(Math.max(0, (sum.total_sales || 0) - totalCash));
 
       renderDailyShiftsTable(result.shifts || []);
+    } else {
+      showToast(result.error || 'Gagal memuat laporan', 'error');
     }
   } catch (err) {
+    console.error("Error daily report:", err);
     showToast('Gagal memuat laporan harian', 'error');
   }
 }
@@ -153,37 +167,46 @@ function renderDailyShiftsTable(shifts) {
   }).join('');
 }
 
-// =========================================================================
-// 2. LAPORAN BULANAN
-// =========================================================================
+// -------------------------------------------------------------------------
+// 3. LAPORAN BULANAN
+// -------------------------------------------------------------------------
 export async function loadMonthlyReport() {
+  const tenantId = getActiveTenantId();
   const monthInput = document.getElementById('monthly-report-month');
   if (monthInput && !monthInput.value) {
     monthInput.value = new Date().toISOString().slice(0, 7);
   }
-  const selectedMonth = monthInput ? monthInput.value : new Date().toISOString().slice(0, 7);
+  const selectedMonth = monthInput?.value || new Date().toISOString().slice(0, 7);
+
+  if (!tenantId) {
+    console.warn("Tenant ID tidak ditemukan untuk laporan bulanan.");
+    return;
+  }
 
   try {
-    const res = await fetch(`/api/reports/monthly?tenant_id=${state.tenantId}&month=${selectedMonth}`);
+    const res = await fetch(`/api/reports/monthly?tenant_id=${tenantId}&month=${selectedMonth}`);
     const result = await res.json();
 
     if (result.success) {
-      const sum = result.summary;
+      const sum = result.summary || {};
       const elSales = document.getElementById('monthly-total-sales');
       const elTx = document.getElementById('monthly-tx-count');
       const elCogs = document.getElementById('monthly-total-cogs');
       const elProfit = document.getElementById('monthly-gross-profit');
       const elMargin = document.getElementById('monthly-margin-pct');
 
-      if (elSales) elSales.innerText = formatRupiah(sum.total_sales);
-      if (elTx) elTx.innerText = `${sum.total_transactions} Transaksi Selesai`;
-      if (elCogs) elCogs.innerText = formatRupiah(sum.total_cogs);
-      if (elProfit) elProfit.innerText = formatRupiah(sum.gross_profit);
-      if (elMargin) elMargin.innerText = `Margin Rata-rata: ${sum.profit_margin_pct}%`;
+      if (elSales) elSales.innerText = formatRupiah(sum.total_sales || 0);
+      if (elTx) elTx.innerText = `${sum.total_transactions || 0} Transaksi Selesai`;
+      if (elCogs) elCogs.innerText = formatRupiah(sum.total_cogs || 0);
+      if (elProfit) elProfit.innerText = formatRupiah(sum.gross_profit || 0);
+      if (elMargin) elMargin.innerText = `Margin Rata-rata: ${sum.profit_margin_pct || 0}%`;
 
       renderMonthlyTrendsTable(result.daily_trends || []);
+    } else {
+      showToast(result.error || 'Gagal memuat laporan bulanan', 'error');
     }
   } catch (err) {
+    console.error("Error monthly report:", err);
     showToast('Gagal memuat laporan bulanan', 'error');
   }
 }
