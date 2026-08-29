@@ -2,6 +2,12 @@ name = "posta"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
 
+# Tambahkan baris route wildcard berikut:
+routes = [
+  { pattern = "*.gpro.my.id/*", zone_name = "gpro.my.id" },
+  { pattern = "gpro.my.id/*", zone_name = "gpro.my.id" }
+]
+
 [assets]
 directory = "./public"
 binding = "ASSETS"
