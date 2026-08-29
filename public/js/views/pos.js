@@ -16,7 +16,7 @@ export async function initTenantSession() {
         <div class="h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center font-sans text-slate-100">
           <div class="w-16 h-16 bg-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-4 font-bold border border-rose-500/30">!</div>
           <h1 class="text-xl font-black mb-1">Toko Tidak Ditemukan</h1>
-          <p class="text-xs text-slate-400 max-w-sm mb-4">${result.error}</p>
+          <p class="text-xs text-slate-400 max-w-sm mb-4">${result.error || 'Subdomain tidak aktif'}</p>
           <a href="https://posta.gpro.my.id" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg">Kembali ke Portal Hub</a>
         </div>
       `;
@@ -84,14 +84,25 @@ export async function loadProducts() {
       renderProductTable();
       setupPODatalist();
     } else {
+      state.products = [];
       if (grid) {
         grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Belum ada produk aktif di toko ini.</div>`;
       }
+      renderProductTable();
     }
   } catch (err) {
     if (grid) {
       grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat katalog barang.</div>`;
     }
+  }
+}
+
+// Dipanggil saat tab 'Master Produk' dibuka
+export function loadMasterProducts() {
+  if (!state.products || state.products.length === 0) {
+    loadProducts();
+  } else {
+    renderProductTable();
   }
 }
 
@@ -105,7 +116,7 @@ export function renderCategories() {
   const categories = ['ALL', ...new Set(state.products.map(p => p.category_name).filter(Boolean))];
   container.innerHTML = categories.map(cat => `
     <button onclick="window.filterCategory('${cat}')" 
-      class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${state.selectedCategory === cat ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} shrink-0">
+      class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${state.selectedCategory === cat ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} shrink-0 transition">
       ${cat === 'ALL' ? 'Semua' : cat}
     </button>
   `).join('');
@@ -125,7 +136,7 @@ export function renderProductGrid() {
   if (!grid) return;
 
   const keyword = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const filtered = state.products.filter(p => {
+  const filtered = (state.products || []).filter(p => {
     const matchCat = state.selectedCategory === 'ALL' || p.category_name === state.selectedCategory;
     const matchSearch = p.name.toLowerCase().includes(keyword) || (p.barcode && String(p.barcode).toLowerCase().includes(keyword));
     return matchCat && matchSearch;
@@ -151,14 +162,14 @@ export function renderProductGrid() {
 }
 
 // =========================================================================
-// 5. TABEL MASTER PRODUK (Dibutuhkan oleh navigation.js)
+// 5. TABEL MASTER PRODUK
 // =========================================================================
 export function renderProductTable() {
   const tbody = document.getElementById('master-products-tbody');
   if (!tbody) return;
 
   const keyword = (document.getElementById('prod-table-search')?.value || '').toLowerCase();
-  const filtered = state.products.filter(p => 
+  const filtered = (state.products || []).filter(p => 
     p.name.toLowerCase().includes(keyword) || 
     (p.barcode && String(p.barcode).toLowerCase().includes(keyword)) ||
     (p.category_name && p.category_name.toLowerCase().includes(keyword))
@@ -191,7 +202,7 @@ export function renderProductTable() {
 export function setupPODatalist() {
   const datalist = document.getElementById('master-products-datalist');
   if (!datalist) return;
-  datalist.innerHTML = state.products.map(p => `
+  datalist.innerHTML = (state.products || []).map(p => `
     <option value="${p.barcode || p.name}">[${p.barcode || 'NO-BARCODE'}] ${p.name} - Stok: ${p.stock}</option>
   `).join('');
 }
@@ -211,10 +222,18 @@ export function addToCart(productId) {
     if (existing.qty < product.stock) {
       existing.qty += 1;
     } else {
-      showToast(`Stok ${product.name} hanya ada ${product.stock}`, "error");
+      showToast(`Stok ${product.name} hanya tersisa ${product.stock}`, "error");
     }
   } else {
-    state.cart.push({ ...product, qty: 1 });
+    // Simpan data produk lengkap (termasuk cost_price) ke keranjang
+    state.cart.push({ 
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      cost_price: product.cost_price || 0,
+      stock: product.stock,
+      qty: 1 
+    });
   }
   updateCartUI();
 }
@@ -232,10 +251,10 @@ export function updateCartUI() {
         <span class="text-xs text-emerald-600 font-bold">${formatRupiah(item.price)}</span>
       </div>
       <div class="flex items-center gap-1">
-        <button onclick="window.updateQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold">-</button>
+        <button onclick="window.updateQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold transition">-</button>
         <input type="number" min="1" value="${item.qty}" onchange="window.setDirectCartQty('${item.id}', this.value)" class="w-10 text-center text-xs font-bold bg-white border border-slate-300 rounded p-0.5" />
-        <button onclick="window.updateQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold">+</button>
-        <button onclick="window.removeCartItem('${item.id}')" class="text-rose-500 hover:text-rose-700 ml-1 text-xs">
+        <button onclick="window.updateQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold transition">+</button>
+        <button onclick="window.removeCartItem('${item.id}')" class="text-rose-500 hover:text-rose-700 ml-1 text-xs p-1">
           <i class="fa-solid fa-trash"></i>
         </button>
       </div>
@@ -281,6 +300,7 @@ export function updateQty(productId, delta) {
   const item = state.cart.find(c => c.id === productId);
   const product = state.products.find(p => p.id === productId);
   if (!item || !product) return;
+
   const targetQty = item.qty + delta;
   if (targetQty > product.stock) {
     showToast(`Stok ${product.name} sisa ${product.stock}`, 'error');
