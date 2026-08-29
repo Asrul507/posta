@@ -117,13 +117,11 @@
         <div class="relative flex-1">
           <input 
             id="po-search-input" 
-            list="master-products-datalist"
             type="text" 
-            placeholder="Pilih dropdown / ketik nama / scan barcode..." 
+            placeholder="Ketik nama / barcode produk..." 
             onkeydown="if(event.key === 'Enter') window.handlePOSearch()"
             class="w-full text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
           />
-          <datalist id="master-products-datalist"></datalist>
         </div>
 
         <button onclick="window.openContinuousCamera('PO')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
@@ -266,13 +264,9 @@
   </div>
 </div>
 
-<!-- ========================================================================= -->
-<!-- MODAL STRUK KASIR / NOTA THERMAL                                         -->
-<!-- ========================================================================= -->
+<!-- MODAL STRUK KASIR / NOTA THERMAL -->
 <div id="receipt-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-[220] hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-3xl max-w-sm w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-    
-    <!-- Modal Header (Hanya di Layar) -->
     <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
       <div class="flex items-center gap-2">
         <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-sm font-bold">
@@ -288,17 +282,14 @@
       </button>
     </div>
 
-    <!-- AREA STRUK (DIDESAIN DENGAN FORMAT THERMAL) -->
     <div class="flex-1 overflow-y-auto p-4 bg-slate-100 flex justify-center">
       <div id="printable-receipt" class="w-full bg-white p-4 text-[11px] font-mono leading-tight text-slate-900 shadow-sm border border-slate-200">
-        <!-- Header Struk -->
         <div class="text-center space-y-0.5 border-b border-dashed border-slate-400 pb-2 mb-2">
           <h2 id="rec-store-name" class="font-bold text-sm uppercase tracking-wide">POSTA POS</h2>
           <p id="rec-store-address" class="text-[10px] text-slate-600">Alamat Toko</p>
           <p id="rec-store-phone" class="text-[10px] text-slate-600">Telp: -</p>
         </div>
 
-        <!-- Info Transaksi -->
         <div class="space-y-0.5 border-b border-dashed border-slate-400 pb-2 mb-2 text-[10px]">
           <div class="flex justify-between">
             <span>No. Invoice:</span>
@@ -314,19 +305,15 @@
           </div>
         </div>
 
-        <!-- Tabel Daftar Barang -->
         <div class="border-b border-dashed border-slate-400 pb-2 mb-2">
           <div class="grid grid-cols-12 font-bold border-b border-slate-300 pb-1 mb-1 text-[10px]">
             <div class="col-span-6">Item</div>
             <div class="col-span-2 text-center">Qty</div>
             <div class="col-span-4 text-right">Total</div>
           </div>
-          <div id="rec-items-list" class="space-y-1 text-[10px]">
-            <!-- Dinamis via JS -->
-          </div>
+          <div id="rec-items-list" class="space-y-1 text-[10px]"></div>
         </div>
 
-        <!-- Ringkasan Total & Pembayaran -->
         <div class="space-y-1 text-[10px] border-b border-dashed border-slate-400 pb-2 mb-2">
           <div class="flex justify-between">
             <span>Total Tagihan</span>
@@ -342,7 +329,6 @@
           </div>
         </div>
 
-        <!-- Footer Struk -->
         <div class="text-center pt-1 text-[9px] text-slate-600 space-y-0.5">
           <p class="font-bold">*** TERIMA KASIH ***</p>
           <p>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan</p>
@@ -350,7 +336,6 @@
       </div>
     </div>
 
-    <!-- Tombol Aksi (Hanya di Layar) -->
     <div class="p-3 bg-white border-t border-slate-100 flex gap-2 shrink-0">
       <button onclick="window.closeReceiptModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
         Transaksi Baru
@@ -363,21 +348,33 @@
   </div>
 </div>
 
-<!-- MODAL 1: WAJIB BUKA SHIFT (MODAL KAS AWAL) -->
+<!-- MODAL 1: WAJIB BUKA SHIFT (DENGAN PILIHAN SHIFT PAGI / SIANG / MALAM) -->
 <div id="open-shift-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[300] hidden flex items-center justify-center p-4">
-  <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 text-center">
-    <div class="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-2xl mx-auto shadow-inner">
+  <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
+    <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl mx-auto shadow-inner">
       <i class="fa-solid fa-cash-register"></i>
     </div>
     <div>
-      <h3 class="text-base font-extrabold text-slate-900">Buka Shift Kasir Baru</h3>
-      <p class="text-xs text-slate-500 mt-1">Masukkan modal uang tunai di laci sebelum memulai penjualan</p>
+      <h3 class="text-base font-extrabold text-slate-900">Buka Shift Kasir</h3>
+      <p class="text-xs text-slate-500 mt-0.5">Pilih shift jaga & masukkan modal kas laci</p>
     </div>
-    <div class="space-y-1.5 text-left">
-      <label class="text-[11px] font-bold text-slate-600 uppercase">Modal Uang Kas Awal (Rp)</label>
-      <input id="open-shift-cash-input" type="number" placeholder="Contoh: 100000" class="w-full text-center text-xl font-black p-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none" />
+    
+    <div class="space-y-3 text-left">
+      <div>
+        <label class="text-[11px] font-bold text-slate-600 uppercase">Pilih Shift</label>
+        <select id="open-shift-name-select" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 mt-1">
+          <option value="Pagi">Shift Pagi (07:00 - 15:00)</option>
+          <option value="Siang">Shift Siang (15:00 - 22:00)</option>
+          <option value="Malam">Shift Malam (22:00 - Selesai)</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-[11px] font-bold text-slate-600 uppercase">Modal Kas Awal di Laci (Rp)</label>
+        <input id="open-shift-cash-input" type="number" placeholder="Contoh: 100000" class="w-full text-center text-xl font-black p-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none mt-1" />
+      </div>
     </div>
-    <button id="btn-submit-open-shift" onclick="window.submitOpenShift()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2">
+
+    <button id="btn-submit-open-shift" onclick="window.submitOpenShift()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2">
       <span>Buka Kasir Sekarang</span>
       <i class="fa-solid fa-arrow-right"></i>
     </button>
@@ -422,40 +419,56 @@
   </div>
 </div>
 
-<!-- MODAL 3: STRUK X-REPORT (CLOSING SHIFT SUMMARY) -->
+<!-- MODAL 3: STRUK X-REPORT (CLOSING SHIFT SUMMARY DENGAN TUNAI VS NON-TUNAI) -->
 <div id="shift-summary-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[320] hidden flex items-center justify-center p-4">
-  <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-4">
-    <div class="text-center border-b border-dashed border-slate-300 pb-3 font-mono">
-      <h3 class="font-black text-sm uppercase">REKAP CLOSING SHIFT (X-REPORT)</h3>
-      <p id="xrep-cashier" class="text-xs text-slate-600 font-bold">Kasir: -</p>
+  <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl space-y-3">
+    <div class="text-center border-b border-dashed border-slate-400 pb-2.5 font-mono">
+      <h3 class="font-black text-sm uppercase">REKAP TUTUP SHIFT (X-REPORT)</h3>
+      <p id="xrep-store" class="text-xs font-bold uppercase text-slate-800">POSTA POS</p>
+      <p id="xrep-shift-info" class="text-[11px] text-slate-600 font-bold">Shift Pagi - Kasir</p>
       <p id="xrep-time" class="text-[10px] text-slate-500">-</p>
     </div>
 
-    <div class="space-y-1.5 text-xs font-mono border-b border-dashed border-slate-300 pb-3">
-      <div class="flex justify-between">
-        <span>Modal Awal:</span>
-        <span id="xrep-starting" class="font-bold">Rp 0</span>
+    <div class="space-y-1.5 text-xs font-mono border-b border-dashed border-slate-400 pb-2.5">
+      <div class="flex justify-between font-bold text-slate-800">
+        <span>Total Transaksi:</span>
+        <span id="xrep-total-tx">0 Nota</span>
       </div>
-      <div class="flex justify-between">
-        <span>Penjualan Tunai:</span>
-        <span id="xrep-sales" class="font-bold">Rp 0</span>
+      <div class="flex justify-between font-bold text-slate-900 border-b border-slate-200 pb-1">
+        <span>Total Omzet Shift:</span>
+        <span id="xrep-grand-sales">Rp 0</span>
       </div>
-      <div class="flex justify-between border-t border-slate-200 pt-1 text-slate-700">
-        <span>Harus Ada di Laci:</span>
-        <span id="xrep-expected" class="font-black">Rp 0</span>
+      <div class="flex justify-between text-slate-600 pt-1">
+        <span>- Pembayaran Tunai:</span>
+        <span id="xrep-cash-sales">Rp 0</span>
       </div>
-      <div class="flex justify-between text-slate-900">
-        <span>Uang Fisik Diinput:</span>
-        <span id="xrep-actual" class="font-black">Rp 0</span>
-      </div>
-      <div class="flex justify-between font-bold text-sm pt-1.5 border-t border-slate-300">
-        <span>Status Selisih:</span>
-        <span id="xrep-difference" class="font-black">Rp 0</span>
+      <div class="flex justify-between text-slate-600">
+        <span>- Pembayaran Non-Tunai:</span>
+        <span id="xrep-noncash-sales">Rp 0</span>
       </div>
     </div>
 
-    <div class="flex gap-2">
-      <button onclick="window.printShiftReport()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5">
+    <div class="space-y-1 text-xs font-mono border-b border-dashed border-slate-400 pb-2.5">
+      <div class="flex justify-between">
+        <span>Modal Awal Kas:</span>
+        <span id="xrep-starting">Rp 0</span>
+      </div>
+      <div class="flex justify-between font-bold text-slate-700">
+        <span>Harus Ada di Laci:</span>
+        <span id="xrep-expected">Rp 0</span>
+      </div>
+      <div class="flex justify-between font-bold text-slate-900">
+        <span>Fisik Kas Diinput:</span>
+        <span id="xrep-actual">Rp 0</span>
+      </div>
+      <div class="flex justify-between font-black text-xs pt-1 border-t border-slate-200">
+        <span>Status Selisih:</span>
+        <span id="xrep-difference">Rp 0</span>
+      </div>
+    </div>
+
+    <div class="flex gap-2 pt-1">
+      <button onclick="window.print()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5">
         <i class="fa-solid fa-print"></i>
         <span>Cetak Rekap</span>
       </button>
