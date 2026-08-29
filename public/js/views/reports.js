@@ -1,4 +1,4 @@
-import { formatRupiah } from '../state.js';
+import { state, formatRupiah, showToast } from '../state.js';
 import { API } from '../api.js';
 
 function parseDate(dStr) {
@@ -8,8 +8,10 @@ function parseDate(dStr) {
   return isNaN(d.getTime()) ? dStr : d.toLocaleString('id-ID');
 }
 
+// Riwayat Transaksi Biasa
 export async function fetchTransactions() {
   const tbody = document.getElementById('transactions-tbody');
+  if (!tbody) return;
   tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> Memuat riwayat...</td></tr>`;
 
   try {
@@ -33,8 +35,10 @@ export async function fetchTransactions() {
   }
 }
 
+// Riwayat Barang Masuk (PO)
 export async function fetchPOHistory() {
   const tbody = document.getElementById('pohist-tbody');
+  if (!tbody) return;
   tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> Memuat riwayat...</td></tr>`;
 
   try {
@@ -46,7 +50,7 @@ export async function fetchPOHistory() {
           <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${p.po_number}</td>
           <td class="py-2.5 px-3 font-semibold text-slate-700">${p.supplier_name || '-'}</td>
           <td class="py-2.5 px-3 text-slate-500">${p.notes || '-'}</td>
-          <td class="py-2.5 px-3 text-center font-bold text-emerald-600">${p.total_items} Jenis Item</td>
+          <td class="py-2.5 px-3 text-center font-bold text-emerald-600">${p.total_qty || p.total_items || 0} Pcs</td>
         </tr>
       `).join('');
     } else {
@@ -55,4 +59,149 @@ export async function fetchPOHistory() {
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-rose-500">Gagal mengambil data barang masuk.</td></tr>`;
   }
+}
+
+// =========================================================================
+// 1. LAPORAN HARIAN (Z-REPORT) & REKAP SHIFT
+// =========================================================================
+export async function loadDailyReport() {
+  const dateInput = document.getElementById('daily-report-date');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = new Date().toISOString().split('T')[0];
+  }
+  const selectedDate = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+
+  try {
+    const res = await fetch(`/api/reports/daily?tenant_id=${state.tenantId}&date=${selectedDate}`);
+    const result = await res.json();
+
+    if (result.success) {
+      const sum = result.summary;
+      const elSales = document.getElementById('daily-total-sales');
+      const elTx = document.getElementById('daily-tx-count');
+      const elProfit = document.getElementById('daily-gross-profit');
+      const elMargin = document.getElementById('daily-margin-pct');
+      const elCogs = document.getElementById('daily-total-cogs');
+
+      if (elSales) elSales.innerText = formatRupiah(sum.total_sales);
+      if (elTx) elTx.innerText = `${sum.total_transactions} Transaksi Selesai`;
+      if (elProfit) elProfit.innerText = formatRupiah(sum.gross_profit);
+      if (elMargin) elMargin.innerText = `Margin: ${sum.profit_margin_pct}%`;
+      if (elCogs) elCogs.innerText = formatRupiah(sum.total_cogs);
+
+      // Hitung tunai vs non-tunai
+      let totalCash = 0;
+      (result.shifts || []).forEach(s => {
+        totalCash += Math.max(0, (s.expected_cash || 0) - (s.starting_cash || 0));
+      });
+      const elCash = document.getElementById('daily-cash-sales');
+      const elNonCash = document.getElementById('daily-noncash-sales');
+      if (elCash) elCash.innerText = formatRupiah(totalCash);
+      if (elNonCash) elNonCash.innerText = formatRupiah(Math.max(0, sum.total_sales - totalCash));
+
+      renderDailyShiftsTable(result.shifts || []);
+    }
+  } catch (err) {
+    showToast('Gagal memuat laporan harian', 'error');
+  }
+}
+
+function renderDailyShiftsTable(shifts) {
+  const tbody = document.getElementById('daily-shifts-table-tbody');
+  if (!tbody) return;
+
+  if (shifts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-400">Tidak ada shift tercatat pada tanggal ini.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shifts.map(s => {
+    const startTime = new Date(s.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const endTime = s.end_time ? new Date(s.end_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Aktif';
+    const cashSales = Math.max(0, (s.expected_cash || 0) - (s.starting_cash || 0));
+
+    let diffBadge = `<span class="text-slate-400">-</span>`;
+    if (s.status === 'CLOSED') {
+      if (s.difference === 0) {
+        diffBadge = `<span class="text-emerald-600 font-bold">Pas</span>`;
+      } else if (s.difference > 0) {
+        diffBadge = `<span class="text-blue-600 font-bold">+${formatRupiah(s.difference)}</span>`;
+      } else {
+        diffBadge = `<span class="text-rose-600 font-bold">${formatRupiah(s.difference)}</span>`;
+      }
+    }
+
+    return `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="py-2.5 px-3">
+          <div class="font-bold text-slate-800">Shift ${s.shift_name || 'Pagi'}</div>
+          <div class="text-[10px] text-slate-500">${s.cashier_name}</div>
+        </td>
+        <td class="py-2.5 px-3 text-[11px] font-mono text-slate-600">${startTime} - ${endTime}</td>
+        <td class="py-2.5 px-3 text-right font-mono">${formatRupiah(s.starting_cash)}</td>
+        <td class="py-2.5 px-3 text-right font-mono font-bold text-emerald-600">${formatRupiah(cashSales)}</td>
+        <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-800">${formatRupiah(s.expected_cash || 0)}</td>
+        <td class="py-2.5 px-3 text-right font-mono font-bold text-slate-900">${s.status === 'CLOSED' ? formatRupiah(s.actual_cash) : '-'}</td>
+        <td class="py-2.5 px-3 text-center text-xs font-mono">${diffBadge}</td>
+        <td class="py-2.5 px-3 text-center">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold ${s.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+            ${s.status}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// =========================================================================
+// 2. LAPORAN BULANAN
+// =========================================================================
+export async function loadMonthlyReport() {
+  const monthInput = document.getElementById('monthly-report-month');
+  if (monthInput && !monthInput.value) {
+    monthInput.value = new Date().toISOString().slice(0, 7);
+  }
+  const selectedMonth = monthInput ? monthInput.value : new Date().toISOString().slice(0, 7);
+
+  try {
+    const res = await fetch(`/api/reports/monthly?tenant_id=${state.tenantId}&month=${selectedMonth}`);
+    const result = await res.json();
+
+    if (result.success) {
+      const sum = result.summary;
+      const elSales = document.getElementById('monthly-total-sales');
+      const elTx = document.getElementById('monthly-tx-count');
+      const elCogs = document.getElementById('monthly-total-cogs');
+      const elProfit = document.getElementById('monthly-gross-profit');
+      const elMargin = document.getElementById('monthly-margin-pct');
+
+      if (elSales) elSales.innerText = formatRupiah(sum.total_sales);
+      if (elTx) elTx.innerText = `${sum.total_transactions} Transaksi Selesai`;
+      if (elCogs) elCogs.innerText = formatRupiah(sum.total_cogs);
+      if (elProfit) elProfit.innerText = formatRupiah(sum.gross_profit);
+      if (elMargin) elMargin.innerText = `Margin Rata-rata: ${sum.profit_margin_pct}%`;
+
+      renderMonthlyTrendsTable(result.daily_trends || []);
+    }
+  } catch (err) {
+    showToast('Gagal memuat laporan bulanan', 'error');
+  }
+}
+
+function renderMonthlyTrendsTable(trends) {
+  const tbody = document.getElementById('monthly-trends-table-tbody');
+  if (!tbody) return;
+
+  if (trends.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-6 text-slate-400">Belum ada transaksi di bulan ini.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = trends.map(t => `
+    <tr class="hover:bg-slate-50 transition">
+      <td class="py-2 px-3 font-mono font-bold text-slate-800">${t.sale_date}</td>
+      <td class="py-2 px-3 text-center text-slate-600">${t.daily_tx} Transaksi</td>
+      <td class="py-2 px-3 text-right font-mono font-bold text-emerald-600">${formatRupiah(t.daily_sales)}</td>
+    </tr>
+  `).join('');
 }
