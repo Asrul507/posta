@@ -1,0 +1,71 @@
+<!-- ========================================================================= -->
+<!-- LOGIN SCREEN FULLPAGE OVERLAY                                            -->
+<!-- ========================================================================= -->
+<div id="login-overlay" class="fixed inset-0 z-[500] hidden bg-slate-950 flex flex-col items-center justify-center p-4">
+  <!-- Background Glow FX -->
+  <div class="absolute inset-0 overflow-hidden pointer-events-none">
+    <div id="login-glow" class="w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl absolute -top-10 -left-10 animate-pulse"></div>
+    <div class="w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl absolute -bottom-10 -right-10 animate-pulse"></div>
+  </div>
+
+  <div class="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-slate-100">
+    <!-- Header Logo & Store Title -->
+    <div class="text-center space-y-2">
+      <div id="login-icon-wrapper" class="w-14 h-14 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-2xl mx-auto shadow-lg shadow-emerald-900/40">
+        <i id="login-icon" class="fa-solid fa-cash-register"></i>
+      </div>
+      <div>
+        <h1 id="login-store-name" class="text-xl font-extrabold text-white tracking-tight">Posta POS</h1>
+        <p id="login-store-sub" class="text-xs text-slate-400 mt-0.5">Silakan masuk ke akun kasir Anda</p>
+      </div>
+    </div>
+
+    <!-- Form Input -->
+    <form onsubmit="event.preventDefault(); window.submitLogin();" class="space-y-4 text-xs">
+      <div>
+        <label class="font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Username</label>
+        <div class="relative flex items-center">
+          <input 
+            id="login-username" 
+            type="text" 
+            required 
+            autocomplete="username" 
+            placeholder="Masukkan username" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 pl-10 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition" 
+          />
+          <i class="fa-solid fa-user absolute left-3.5 text-slate-500"></i>
+        </div>
+      </div>
+
+      <div>
+        <label class="font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Password</label>
+        <div class="relative flex items-center">
+          <input 
+            id="login-password" 
+            type="password" 
+            required 
+            autocomplete="current-password" 
+            placeholder="••••••••" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 pl-10 pr-10 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition" 
+          />
+          <i class="fa-solid fa-lock absolute left-3.5 text-slate-500"></i>
+          <button type="button" onclick="window.toggleLoginPasswordVisibility()" class="absolute right-3.5 text-slate-500 hover:text-slate-300">
+            <i id="login-eye-icon" class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <button 
+        id="btn-submit-login" 
+        type="submit" 
+        class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-2 active:scale-98">
+        <span>Masuk Sekarang</span>
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </form>
+
+    <div class="text-center pt-2 border-t border-slate-800/80">
+      <span class="text-[11px] text-slate-500 font-mono">Domain: <span id="login-current-domain" class="text-emerald-400">posta.gpro.my.id</span></span>
+    </div>
+  </div>
+</div>
