@@ -1,82 +1,59 @@
-import { state, formatRupiah, showToast } from '../state.js';
-import { API } from '../api.js';
-import { clearCart, loadProducts } from './pos.js';
-
-export function openCheckoutModal() {
-  const totalPrice = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  document.getElementById('modal-total-tagihan').innerText = formatRupiah(totalPrice);
-  document.getElementById('cash-input').value = '';
-  document.getElementById('modal-change-amount').innerText = 'Rp 0';
-  document.getElementById('btn-confirm-pay').disabled = true;
-  document.getElementById('checkout-modal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('cash-input').focus(), 150);
-}
-
-export function closeCheckoutModal() {
-  document.getElementById('checkout-modal').classList.add('hidden');
-}
-
-export function setCashAmount(val) {
-  const totalPrice = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const input = document.getElementById('cash-input');
-  input.value = val === 'PAS' ? totalPrice : val;
-  calculateChange();
-}
-
-export function calculateChange() {
-  const totalPrice = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const cash = parseFloat(document.getElementById('cash-input').value) || 0;
-  const change = cash - totalPrice;
-
-  const changeEl = document.getElementById('modal-change-amount');
-  const btnPay = document.getElementById('btn-confirm-pay');
-
-  if (change >= 0 && cash > 0) {
-    changeEl.innerText = formatRupiah(change);
-    changeEl.className = 'text-base font-bold text-emerald-600';
-    btnPay.disabled = false;
-  } else {
-    changeEl.innerText = 'Uang Kurang';
-    changeEl.className = 'text-base font-bold text-rose-500';
-    btnPay.disabled = true;
-  }
-}
-
 export async function submitTransaction() {
-  const totalPrice = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const cash = parseFloat(document.getElementById('cash-input').value) || 0;
-  const change = cash - totalPrice;
+  if (state.cart.length === 0) {
+    showToast("Keranjang kosong!", "error");
+    return;
+  }
 
-  const payload = {
-    tenant_id: state.tenantId,
-    user_id: 'user_kasir_01',
-    invoice_number: 'INV/' + Date.now(),
-    total_amount: totalPrice,
-    paid_amount: cash,
-    change_amount: change,
-    payment_method: 'CASH',
-    items: state.cart
-  };
+  const cashInput = document.getElementById('cash-input');
+  const paidAmount = parseFloat(cashInput?.value) || 0;
+  const totalBill = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
-  const btnPay = document.getElementById('btn-confirm-pay');
-  btnPay.disabled = true;
-  btnPay.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+  if (paidAmount < totalBill) {
+    showToast("Nominal uang yang diterima kurang!", "error");
+    return;
+  }
+
+  const btnConfirm = document.getElementById('btn-confirm-pay');
+  if (btnConfirm) {
+    btnConfirm.disabled = true;
+    btnConfirm.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+  }
 
   try {
-    const result = await API.checkout(payload);
+    const payload = {
+      tenant_id: state.tenantId, // Pastikan tenant_id aktif dikirim
+      items: state.cart,
+      paid_amount: paidAmount,
+      payment_method: 'CASH',
+      cashier_name: state.currentUser?.name || 'Kasir'
+    };
+
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+
     if (result.success) {
-      showToast('Transaksi Berhasil Disimpan!');
+      showToast("Transaksi Berhasil!");
       closeCheckoutModal();
-      window.toggleMobileCartDrawer(false);
       clearCart();
-      loadProducts();
+      
+      // Refresh katalog produk (karena stok berkurang)
+      if (typeof window.loadProducts === 'function') {
+        window.loadProducts();
+      }
     } else {
-      showToast('Gagal: ' + result.error, 'error');
+      showToast("Gagal: " + result.error, "error");
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast("Terjadi kesalahan koneksi saat checkout.", "error");
   } finally {
-    btnPay.disabled = false;
-    btnPay.innerHTML = '<i class="fa-solid fa-check"></i> <span>Selesaikan Transaksi</span>';
+    if (btnConfirm) {
+      btnConfirm.disabled = false;
+      btnConfirm.innerHTML = '<i class="fa-solid fa-check"></i> <span>Selesaikan Transaksi</span>';
+    }
   }
 }
