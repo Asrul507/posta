@@ -3,7 +3,17 @@ import { handleGetProducts } from "./routes/products";
 import { handleCheckout } from "./routes/checkout";
 import { handleSubmitPO } from "./routes/po";
 import { handleStockAdjust } from "./routes/stock";
-import { handleGetTransactions, handleGetPOHistory } from "./routes/reports";
+import { 
+  handleGetTransactions, 
+  handleGetPOHistory, 
+  handleGetDailyReport, 
+  handleGetMonthlyReport 
+} from "./routes/reports";
+import { 
+  handleGetCurrentShift, 
+  handleOpenShift, 
+  handleCloseShift 
+} from "./routes/shifts";
 
 const JWT_SECRET = "posta-secure-jwt-secret-key-2026";
 
@@ -222,7 +232,7 @@ export default {
     }
 
     // -------------------------------------------------------------------------
-    // ADMIN: LIST & CREATE USERS (WAJIB ADA UNTUK ATASI 404)
+    // ADMIN: LIST & CREATE USERS
     // -------------------------------------------------------------------------
     if (url.pathname === "/api/admin/users" && request.method === "GET") {
       try {
@@ -335,14 +345,33 @@ export default {
     }
 
     // -------------------------------------------------------------------------
+    // API SHIFTS KASIR
+    // -------------------------------------------------------------------------
+    if (url.pathname === "/api/shifts/current" && request.method === "GET") {
+      return handleGetCurrentShift(request, env);
+    }
+    if (url.pathname === "/api/shifts/open" && request.method === "POST") {
+      return handleOpenShift(request, env);
+    }
+    if (url.pathname === "/api/shifts/close" && request.method === "POST") {
+      return handleCloseShift(request, env);
+    }
+
+    // -------------------------------------------------------------------------
     // API POS & TRANSAKSI
     // -------------------------------------------------------------------------
     if (url.pathname === "/api/products" && request.method === "GET") return handleGetProducts(request, env);
     if (url.pathname === "/api/checkout" && request.method === "POST") return handleCheckout(request, env);
     if (url.pathname === "/api/po/submit" && request.method === "POST") return handleSubmitPO(request, env);
     if (url.pathname === "/api/stock/adjust" && request.method === "POST") return handleStockAdjust(request, env);
+
+    // -------------------------------------------------------------------------
+    // API LAPORAN & ANALISIS (TRANSAKSI, PO, HARIAN & BULANAN)
+    // -------------------------------------------------------------------------
     if (url.pathname === "/api/reports/transactions" && request.method === "GET") return handleGetTransactions(request, env);
     if (url.pathname === "/api/reports/po" && request.method === "GET") return handleGetPOHistory(request, env);
+    if (url.pathname === "/api/reports/daily" && request.method === "GET") return handleGetDailyReport(request, env);
+    if (url.pathname === "/api/reports/monthly" && request.method === "GET") return handleGetMonthlyReport(request, env);
 
     return env.ASSETS.fetch(request);
   }
