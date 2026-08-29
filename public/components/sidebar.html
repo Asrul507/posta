@@ -57,3 +57,20 @@
     </button>
   </div>
 </aside>
+
+<!-- Navigasi Kasir -->
+<button onclick="window.openCloseShiftModal(); window.toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 font-bold transition">
+  <i class="fa-solid fa-clock-rotate-left w-4 text-amber-600"></i>
+  <span>Tutup Kasir (End Shift)</span>
+</button>
+
+<!-- Navigasi Khusus Owner & Admin -->
+<div class="role-admin-only pt-2 px-3 py-1.5 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Analisis & Laba</div>
+<button onclick="window.switchView('DAILY_REPORT'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 text-xs font-bold text-slate-700">
+  <i class="fa-solid fa-chart-pie w-4 text-emerald-600"></i>
+  <span>Laporan Harian (Z-Report)</span>
+</button>
+<button onclick="window.switchView('MONTHLY_REPORT'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 text-xs font-bold text-slate-700">
+  <i class="fa-solid fa-chart-line w-4 text-indigo-600"></i>
+  <span>Laporan Bulanan & Laba</span>
+</button>
