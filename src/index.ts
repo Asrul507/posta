@@ -5,6 +5,70 @@ import { handleSubmitPO } from "./routes/po";
 import { handleStockAdjust } from "./routes/stock";
 import { handleGetTransactions, handleGetPOHistory } from "./routes/reports";
 
+// =========================================================================
+    // POST /api/auth/login (Handler Login)
+    // =========================================================================
+    if (url.pathname === "/api/auth/login" && request.method === "POST") {
+      try {
+        const { username, password } = await request.json() as any;
+        if (!username || !password) {
+          return Response.json({ success: false, error: "Username dan password wajib diisi" }, { status: 400 });
+        }
+
+        let user: any = null;
+        if (currentSubdomain === "posta") {
+          // Login Superadmin
+          user = await env.DB.prepare(
+            "SELECT * FROM users WHERE username = ? AND role = 'SUPERADMIN' AND is_active = 1"
+          ).bind(username.trim().toLowerCase()).first();
+        } else {
+          // Login Toko / Tenant
+          const tenant = await env.DB.prepare(
+            "SELECT id FROM tenants WHERE subdomain = ? AND is_active = 1"
+          ).bind(currentSubdomain).first();
+
+          if (!tenant) {
+            return Response.json({ success: false, error: "Toko tidak terdaftar atau nonaktif." }, { status: 404 });
+          }
+
+          user = await env.DB.prepare(
+            "SELECT * FROM users WHERE username = ? AND tenant_id = ? AND is_active = 1"
+          ).bind(username.trim().toLowerCase(), tenant.id).first();
+        }
+
+        if (!user) {
+          return Response.json({ success: false, error: "Username atau password salah." }, { status: 401 });
+        }
+
+        const inputHash = await hashPassword(password, user.salt || "posta_salt_2026");
+        if (inputHash !== user.password_hash) {
+          return Response.json({ success: false, error: "Username atau password salah." }, { status: 401 });
+        }
+
+        const token = await createJWT({
+          id: user.id,
+          tenant_id: user.tenant_id,
+          username: user.username,
+          name: user.name,
+          role: user.role
+        });
+
+        return Response.json({
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            role: user.role,
+            tenant_id: user.tenant_id
+          }
+        });
+      } catch (err: any) {
+        return Response.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
+
 function extractSubdomain(hostname: string): string {
   const host = hostname.toLowerCase().split(':')[0]; // hapus port
 
