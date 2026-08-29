@@ -26,6 +26,7 @@ Object.assign(window, {
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     await Promise.all([
+      loadComponent('comp-login', '/components/login.html'),
       loadComponent('comp-sidebar', '/components/sidebar.html'),
       loadComponent('comp-header', '/components/header.html'),
       loadComponent('comp-view-pos', '/components/view-pos.html'),
