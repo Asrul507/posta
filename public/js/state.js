@@ -1,5 +1,6 @@
 export const state = {
-  tenantId: 'toko_demo_01',
+  tenantId: null,
+  tenantInfo: null,
   products: [],
   cart: [],
   poItems: [],
@@ -15,6 +16,7 @@ export const formatRupiah = (val) =>
 
 export function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
   const toast = document.createElement('div');
   const isSuccess = type === 'success';
   const bgClass = isSuccess ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white';
