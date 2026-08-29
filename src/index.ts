@@ -258,5 +258,128 @@ export default {
     // 5. STATIC ASSETS FRONTEND
     // =========================================================================
     return env.ASSETS.fetch(request);
+
+    // =========================================================================
+    // ENDPOINT SUPERADMIN: LIST USERS & TAMBAH USER UNTUK SEMUA TOKO
+    // =========================================================================
+
+    // GET /api/admin/users -> Ambil daftar user seluruh toko
+    if (url.pathname === "/api/admin/users" && request.method === "GET") {
+      try {
+        const query = `
+          SELECT 
+            u.id, 
+            u.tenant_id, 
+            u.username, 
+            u.name, 
+            u.role, 
+            u.is_active, 
+            u.created_at,
+            COALESCE(t.name, 'SUPERADMIN / PUSAT') AS tenant_name,
+            COALESCE(t.subdomain, 'posta') AS subdomain
+          FROM users u
+          LEFT JOIN tenants t ON u.tenant_id = t.id
+          ORDER BY u.created_at DESC
+        `;
+        const { results } = await env.DB.prepare(query).all();
+        return Response.json({ success: true, data: results });
+      } catch (err: any) {
+        return Response.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
+
+    // POST /api/admin/users -> Tambah user baru untuk toko mana saja
+    if (url.pathname === "/api/admin/users" && request.method === "POST") {
+      try {
+        const payload: {
+          tenant_id: string; // ID Toko atau 'SUPERADMIN'
+          username: string;
+          password: string;
+          name: string;
+          role: string;
+        } = await request.json();
+
+        const cleanUser = (payload.username || "").trim().toLowerCase();
+        const cleanName = (payload.name || "").trim();
+        const role = payload.role;
+        const tenantId = payload.tenant_id === "SUPERADMIN" ? null : payload.tenant_id;
+
+        if (!cleanUser || !payload.password || !cleanName || !role) {
+          return Response.json({ success: false, error: "Semua form wajib diisi lengkap." }, { status: 400 });
+        }
+
+        // Cek apakah username sudah ada di tenant tersebut
+        let checkQuery = "SELECT id FROM users WHERE username = ? AND tenant_id IS NULL";
+        let checkParams: any[] = [cleanUser];
+
+        if (tenantId) {
+          checkQuery = "SELECT id FROM users WHERE username = ? AND tenant_id = ?";
+          checkParams = [cleanUser, tenantId];
+        }
+
+        const existing = await env.DB.prepare(checkQuery).bind(...checkParams).first();
+        if (existing) {
+          return Response.json({ success: false, error: `Username '${cleanUser}' sudah digunakan pada toko ini.` }, { status: 400 });
+        }
+
+        const salt = "posta_salt_2026";
+        const passHash = await hashPassword(payload.password, salt);
+        const newUserId = "usr_" + Date.now();
+
+        await env.DB.prepare(`
+          INSERT INTO users (id, tenant_id, username, password_hash, salt, name, role, is_active)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        `).bind(newUserId, tenantId, cleanUser, passHash, salt, cleanName, role).run();
+
+        return Response.json({
+          success: true,
+          message: `User '${cleanName}' (${role}) berhasil ditambahkan!`
+        });
+      } catch (err: any) {
+        return Response.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
+
+    // GET /api/admin/impersonate?subdomain=berkah -> Login Instan Superadmin ke Toko Tertentu
+    if (url.pathname === "/api/admin/impersonate" && request.method === "GET") {
+      try {
+        const targetSub = url.searchParams.get("subdomain");
+        if (!targetSub) {
+          return Response.json({ success: false, error: "Parameter subdomain wajib ada." }, { status: 400 });
+        }
+
+        const tenant = await env.DB.prepare(
+          "SELECT id, subdomain, name FROM tenants WHERE subdomain = ? AND is_active = 1"
+        ).bind(targetSub).first();
+
+        if (!tenant) {
+          return Response.json({ success: false, error: "Toko tidak ditemukan." }, { status: 404 });
+        }
+
+        // Buat token khusus Superadmin yang diikatkan ke tenant tersebut
+        const token = await createJWT({
+          id: "superadmin_session",
+          tenant_id: tenant.id,
+          username: "superadmin",
+          name: "Superadmin (" + tenant.name + ")",
+          role: "OWNER" // Akses penuh setara owner toko
+        });
+
+        return Response.json({
+          success: true,
+          token,
+          user: {
+            id: "superadmin_session",
+            username: "superadmin",
+            name: "Superadmin",
+            role: "OWNER",
+            tenant_id: tenant.id
+          },
+          target_url: `https://${targetSub}.gpro.my.id?sso_token=${token}`
+        });
+      } catch (err: any) {
+        return Response.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
   }
 };
