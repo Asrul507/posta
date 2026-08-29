@@ -7,7 +7,6 @@ import { handleGetTransactions, handleGetPOHistory } from "./routes/reports";
 
 const JWT_SECRET = "posta-secure-jwt-secret-key-2026";
 
-// Helper Hash Password SHA-256
 async function hashPassword(password: string, salt: string): Promise<string> {
   const enc = new TextEncoder();
   const data = enc.encode(password + salt);
@@ -17,7 +16,6 @@ async function hashPassword(password: string, salt: string): Promise<string> {
     .join("");
 }
 
-// Helper Simple JWT Token Generator
 async function createJWT(payload: object): Promise<string> {
   const header = { alg: "HS256", typ: "JWT" };
   const encHeader = btoa(JSON.stringify(header));
@@ -37,21 +35,17 @@ async function createJWT(payload: object): Promise<string> {
   return `${signatureInput}.${encSig}`;
 }
 
-// Helper Ekstraksi Subdomain
 function extractSubdomain(hostname: string): string {
   const host = hostname.toLowerCase().split(':')[0];
-
   if (host === "posta.gpro.my.id" || host === "localhost" || host === "127.0.0.1") {
     return "posta";
   }
-
   if (host.endsWith(".gpro.my.id")) {
     const sub = host.replace(".gpro.my.id", "");
     if (sub && sub !== "www") {
       return sub;
     }
   }
-
   return "posta";
 }
 
@@ -60,9 +54,9 @@ export default {
     const url = new URL(request.url);
     const currentSubdomain = extractSubdomain(url.hostname);
 
-    // =========================================================================
-    // 1. ENDPOINT AUTHENTICATION (LOGIN)
-    // =========================================================================
+    // -------------------------------------------------------------------------
+    // AUTHENTICATION LOGIN
+    // -------------------------------------------------------------------------
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       try {
         const { username, password } = await request.json() as any;
@@ -75,12 +69,10 @@ export default {
 
         let user: any = null;
         if (currentSubdomain === "posta") {
-          // Login Superadmin
           user = await env.DB.prepare(
             "SELECT * FROM users WHERE username = ? AND role = 'SUPERADMIN' AND is_active = 1"
           ).bind(cleanUser).first();
         } else {
-          // Login Toko / Tenant
           const tenant = await env.DB.prepare(
             "SELECT id FROM tenants WHERE subdomain = ? AND is_active = 1"
           ).bind(currentSubdomain).first();
@@ -100,15 +92,12 @@ export default {
 
         const salt = user.salt || "posta_salt_2026";
         const computedHash = await hashPassword(inputPass, salt);
-
-        // Cocokkan dengan Hash ATAU cocok dengan teks langsung
         const isMatch = (computedHash === user.password_hash) || (inputPass === user.password_hash);
 
         if (!isMatch) {
           return Response.json({ success: false, error: "Password salah." }, { status: 401 });
         }
 
-        // Jika password di database masih plain, otomatis update jadi hash yang aman
         if (inputPass === user.password_hash) {
           await env.DB.prepare("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?")
             .bind(computedHash, salt, user.id)
@@ -139,9 +128,9 @@ export default {
       }
     }
 
-    // =========================================================================
-    // 2. ENDPOINT INFO TENANT
-    // =========================================================================
+    // -------------------------------------------------------------------------
+    // INFO TENANT
+    // -------------------------------------------------------------------------
     if (url.pathname === "/api/tenant/info" && request.method === "GET") {
       try {
         if (currentSubdomain === "posta") {
@@ -158,7 +147,7 @@ export default {
 
         if (!tenant) {
           return Response.json(
-            { success: false, error: `Toko '${currentSubdomain}' tidak ditemukan atau nonaktif.` },
+            { success: false, error: `Toko '${currentSubdomain}' tidak ditemukan.` },
             { status: 404 }
           );
         }
@@ -169,9 +158,9 @@ export default {
       }
     }
 
-    // =========================================================================
-    // 3. ENDPOINT DEVELOPER HUB (SUPERADMIN TENANTS)
-    // =========================================================================
+    // -------------------------------------------------------------------------
+    // ADMIN: LIST & CREATE TENANTS
+    // -------------------------------------------------------------------------
     if (url.pathname === "/api/admin/tenants" && request.method === "GET") {
       try {
         const query = `
@@ -197,8 +186,8 @@ export default {
 
     if (url.pathname === "/api/admin/tenants" && request.method === "POST") {
       try {
-        const payload: { subdomain: string; name: string; address?: string; phone?: string } = await request.json();
-        const cleanSubdomain = payload.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const payload: any = await request.json();
+        const cleanSubdomain = (payload.subdomain || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
 
         if (!cleanSubdomain || !payload.name) {
           return Response.json({ success: false, error: "Subdomain dan Nama Toko wajib diisi" }, { status: 400 });
@@ -224,7 +213,7 @@ export default {
 
         return Response.json({
           success: true,
-          message: `Toko '${payload.name}' berhasil dibuat! Akun default owner dibuat (user: owner / pass: 123456).`,
+          message: `Toko '${payload.name}' berhasil dibuat!`,
           subdomain: cleanSubdomain
         });
       } catch (err: any) {
@@ -232,38 +221,9 @@ export default {
       }
     }
 
-    // =========================================================================
-    // 4. API OPERASIONAL KASIR
-    // =========================================================================
-    if (url.pathname === "/api/products" && request.method === "GET") {
-      return handleGetProducts(request, env);
-    }
-    if (url.pathname === "/api/checkout" && request.method === "POST") {
-      return handleCheckout(request, env);
-    }
-    if (url.pathname === "/api/po/submit" && request.method === "POST") {
-      return handleSubmitPO(request, env);
-    }
-    if (url.pathname === "/api/stock/adjust" && request.method === "POST") {
-      return handleStockAdjust(request, env);
-    }
-    if (url.pathname === "/api/reports/transactions" && request.method === "GET") {
-      return handleGetTransactions(request, env);
-    }
-    if (url.pathname === "/api/reports/po" && request.method === "GET") {
-      return handleGetPOHistory(request, env);
-    }
-
-    // =========================================================================
-    // 5. STATIC ASSETS FRONTEND
-    // =========================================================================
-    return env.ASSETS.fetch(request);
-
-    // =========================================================================
-    // ENDPOINT SUPERADMIN: LIST USERS & TAMBAH USER UNTUK SEMUA TOKO
-    // =========================================================================
-
-    // GET /api/admin/users -> Ambil daftar user seluruh toko
+    // -------------------------------------------------------------------------
+    // ADMIN: LIST & CREATE USERS (WAJIB ADA UNTUK ATASI 404)
+    // -------------------------------------------------------------------------
     if (url.pathname === "/api/admin/users" && request.method === "GET") {
       try {
         const query = `
@@ -288,17 +248,9 @@ export default {
       }
     }
 
-    // POST /api/admin/users -> Tambah user baru untuk toko mana saja
     if (url.pathname === "/api/admin/users" && request.method === "POST") {
       try {
-        const payload: {
-          tenant_id: string; // ID Toko atau 'SUPERADMIN'
-          username: string;
-          password: string;
-          name: string;
-          role: string;
-        } = await request.json();
-
+        const payload: any = await request.json();
         const cleanUser = (payload.username || "").trim().toLowerCase();
         const cleanName = (payload.name || "").trim();
         const role = payload.role;
@@ -308,7 +260,6 @@ export default {
           return Response.json({ success: false, error: "Semua form wajib diisi lengkap." }, { status: 400 });
         }
 
-        // Cek apakah username sudah ada di tenant tersebut
         let checkQuery = "SELECT id FROM users WHERE username = ? AND tenant_id IS NULL";
         let checkParams: any[] = [cleanUser];
 
@@ -319,7 +270,7 @@ export default {
 
         const existing = await env.DB.prepare(checkQuery).bind(...checkParams).first();
         if (existing) {
-          return Response.json({ success: false, error: `Username '${cleanUser}' sudah digunakan pada toko ini.` }, { status: 400 });
+          return Response.json({ success: false, error: `Username '${cleanUser}' sudah ada di toko ini.` }, { status: 400 });
         }
 
         const salt = "posta_salt_2026";
@@ -340,12 +291,14 @@ export default {
       }
     }
 
-    // GET /api/admin/impersonate?subdomain=berkah -> Login Instan Superadmin ke Toko Tertentu
+    // -------------------------------------------------------------------------
+    // ADMIN: IMPERSONATE STORE
+    // -------------------------------------------------------------------------
     if (url.pathname === "/api/admin/impersonate" && request.method === "GET") {
       try {
         const targetSub = url.searchParams.get("subdomain");
         if (!targetSub) {
-          return Response.json({ success: false, error: "Parameter subdomain wajib ada." }, { status: 400 });
+          return Response.json({ success: false, error: "Subdomain wajib ada" }, { status: 400 });
         }
 
         const tenant = await env.DB.prepare(
@@ -353,16 +306,15 @@ export default {
         ).bind(targetSub).first();
 
         if (!tenant) {
-          return Response.json({ success: false, error: "Toko tidak ditemukan." }, { status: 404 });
+          return Response.json({ success: false, error: "Toko tidak ditemukan" }, { status: 404 });
         }
 
-        // Buat token khusus Superadmin yang diikatkan ke tenant tersebut
         const token = await createJWT({
           id: "superadmin_session",
           tenant_id: tenant.id,
           username: "superadmin",
           name: "Superadmin (" + tenant.name + ")",
-          role: "OWNER" // Akses penuh setara owner toko
+          role: "OWNER"
         });
 
         return Response.json({
@@ -381,5 +333,17 @@ export default {
         return Response.json({ success: false, error: err.message }, { status: 500 });
       }
     }
+
+    // -------------------------------------------------------------------------
+    // API POS & TRANSAKSI
+    // -------------------------------------------------------------------------
+    if (url.pathname === "/api/products" && request.method === "GET") return handleGetProducts(request, env);
+    if (url.pathname === "/api/checkout" && request.method === "POST") return handleCheckout(request, env);
+    if (url.pathname === "/api/po/submit" && request.method === "POST") return handleSubmitPO(request, env);
+    if (url.pathname === "/api/stock/adjust" && request.method === "POST") return handleStockAdjust(request, env);
+    if (url.pathname === "/api/reports/transactions" && request.method === "GET") return handleGetTransactions(request, env);
+    if (url.pathname === "/api/reports/po" && request.method === "GET") return handleGetPOHistory(request, env);
+
+    return env.ASSETS.fetch(request);
   }
 };
