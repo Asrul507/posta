@@ -1,136 +1,95 @@
-<div class="p-6 space-y-6">
-    <!-- ========================================== -->
-    <!-- BAGIAN 1: KHUSUS SUPERADMIN / DEVELOPER   -->
-    <!-- (Fitur Lama Anda Tetap Utuh 100%)         -->
-    <!-- ========================================== -->
-    <div id="admin-superadmin-view" class="hidden space-y-6">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Superadmin Hub (Developer)</h1>
-                <p class="text-sm text-gray-500">Kelola pendaftaran toko (tenant) dan akses SSO cabang.</p>
-            </div>
-            <button onclick="window.postaAdmin?.openAddTenantModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition flex items-center gap-2">
-                <i class="fa-solid fa-plus"></i> Tambah Toko Baru
-            </button>
-        </div>
-
-        <!-- Tabel Daftar Tenant / Toko -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="p-4 border-b">
-                <h2 class="font-semibold text-gray-800">Daftar Tenant Terdaftar</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-gray-600">
-                    <thead class="bg-gray-50 text-xs uppercase font-medium text-gray-400 border-b">
-                        <tr>
-                            <th class="px-4 py-3">Nama Toko</th>
-                            <th class="px-4 py-3">Subdomain</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Aksi (SSO)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="superadmin-tenants-table" class="divide-y divide-gray-100">
-                        <!-- Data tenant dimuat dinamis -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
+<div class="view-container">
+  <!-- 1. PANEL SUPERADMIN / DEVELOPER DASHBOARD (Hanya tampil di posta.gpro.my.id) -->
+  <div id="panel-developer-superadmin" style="display: none;">
+    <div class="view-header">
+      <div>
+        <h2>Developer & Multi-Store Dashboard</h2>
+        <p class="subtitle">Kelola subdomain toko, database multi-tenant, dan pengguna sistem</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn btn-primary" onclick="window.openModal ? window.openModal('modal-create-tenant') : null">
+          + Buat Toko Baru
+        </button>
+        <button class="btn btn-outline" onclick="window.openModal ? window.openModal('modal-create-user') : null">
+          + Buat User
+        </button>
+      </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- BAGIAN 2: DASHBOARD OWNER & ADMIN TOKO    -->
-    <!-- (Tampilan Baru: Ringkasan Shift & Kasir)   -->
-    <!-- ========================================== -->
-    <div id="admin-tenant-view" class="hidden space-y-6">
-        <!-- Header Dashboard Toko -->
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Dashboard Utama Toko</h1>
-                <p class="text-sm text-gray-500">Ringkasan operasional dan status kasir hari ini.</p>
-            </div>
-            
-            <!-- Quick Actions Navigation -->
-            <div class="flex flex-wrap gap-2">
-                <button onclick="window.switchView('DAILY_REPORT')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-calendar-day"></i> Laporan Harian
-                </button>
-                <button onclick="window.switchView('MONTHLY_REPORT')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium shadow-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-chart-line"></i> Laporan Bulanan
-                </button>
-                <button onclick="window.postaNav?.openUserManagementModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium shadow-sm transition flex items-center gap-2">
-                    <i class="fa-solid fa-users-gear"></i> Kelola User
-                </button>
-            </div>
-        </div>
-
-        <!-- Grid Ringkasan Performa & Shift -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Card 1: Shift Terakhir Hari Ini -->
-            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Shift Terakhir (Hari Ini)</span>
-                    <span id="dash-latest-shift-badge" class="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">-</span>
-                </div>
-                <div class="text-2xl font-bold text-gray-900" id="dash-latest-shift-sales">Rp 0</div>
-                <div class="mt-3 text-xs text-gray-500 flex justify-between border-t pt-2">
-                    <span>Kasir: <strong id="dash-latest-shift-cashier" class="text-gray-700">-</strong></span>
-                    <span>Jam: <strong id="dash-latest-shift-time" class="text-gray-700">-</strong></span>
-                </div>
-            </div>
-
-            <!-- Card 2: Jumlah Akun Shift Sedang OPEN -->
-            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Akun / Shift Aktif</span>
-                    <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg text-sm"><i class="fa-solid fa-cash-register"></i></span>
-                </div>
-                <div class="text-2xl font-bold text-emerald-600" id="dash-active-shift-count">0 Akun</div>
-                <div class="mt-3 text-xs text-gray-500 border-t pt-2">
-                    <span>Kasir yang sedang melayani transaksi</span>
-                </div>
-            </div>
-
-            <!-- Card 3: Pintasan Kasir (POS) -->
-            <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Mesin Kasir (POS)</span>
-                    <span class="p-2 bg-amber-50 text-amber-600 rounded-lg text-sm"><i class="fa-solid fa-shop"></i></span>
-                </div>
-                <p class="text-xs text-gray-500 mb-3">Buka antarmuka kasir jika ingin melakukan transaksi langsung.</p>
-                <button onclick="window.switchView('POS')" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition">
-                    Buka Menu Kasir (POS)
-                </button>
-            </div>
-        </div>
-
-        <!-- Tabel Daftar Akun yang Sedang OPEN Hari Ini -->
-        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 class="font-semibold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-user-clock text-blue-600"></i> Kasir Sedang Bertugas (Status OPEN)
-                </h2>
-                <button onclick="window.postaAdmin?.loadAdminDashboardData()" class="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                    <i class="fa-solid fa-rotate"></i> Perbarui
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-gray-600">
-                    <thead class="bg-gray-50 text-xs uppercase font-medium text-gray-400 border-b">
-                        <tr>
-                            <th class="px-4 py-3">Nama Kasir</th>
-                            <th class="px-4 py-3">Nama Shift</th>
-                            <th class="px-4 py-3">Waktu Buka</th>
-                            <th class="px-4 py-3">Modal Awal Laci</th>
-                            <th class="px-4 py-3">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dash-active-shifts-table" class="divide-y divide-gray-100">
-                        <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-gray-400">Belum ada kasir yang membuka shift hari ini.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <!-- Tabel Daftar Toko -->
+    <div class="card" style="margin-bottom: 2rem;">
+      <h3 style="margin-bottom: 1rem;">Daftar Toko Terdaftar</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nama Toko</th>
+              <th>Subdomain / URL</th>
+              <th>Total Produk</th>
+              <th>Total Transaksi</th>
+              <th class="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tenants-table-body">
+            <!-- Diisi otomatis -->
+          </tbody>
+        </table>
+      </div>
     </div>
+
+    <!-- Tabel Daftar User Global -->
+    <div class="card">
+      <h3 style="margin-bottom: 1rem;">Daftar User & Akses</h3>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nama Lengkap</th>
+              <th>Role</th>
+              <th>Toko Asal</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-table-body">
+            <!-- Diisi otomatis -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. PANEL ADMIN TOKO REGULER (Tampil di namatoko.gpro.my.id) -->
+  <div id="panel-store-admin">
+    <div class="view-header">
+      <div>
+        <h2>Manajemen Produk & Inventaris Toko</h2>
+        <p class="subtitle">Kelola katalog barang dan stok opname khusus toko ini</p>
+      </div>
+      <div class="view-actions">
+        <button class="btn btn-primary" onclick="window.openModal ? window.openModal('modal-product') : null">
+          + Tambah Produk
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Nama Produk</th>
+              <th>Harga Pokok</th>
+              <th>Harga Jual</th>
+              <th>Stok</th>
+              <th class="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="product-table-body">
+            <!-- Diisi otomatis -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
