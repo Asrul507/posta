@@ -3,82 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Posta POS - Cloud POS System</title>
+  <title>Posta POS - Cloud System</title>
   
-  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   
-  <!-- Posta Essential & Layout CSS (Embedded) -->
   <style>
-    /* Reset & Base */
+    /* Reset & Base System */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b; line-height: 1.5; }
-    
-    /* Layout */
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #1e293b; }
     body { display: flex; flex-direction: column; overflow: hidden; }
-    #header-root { width: 100%; flex-shrink: 0; z-index: 20; }
+
+    /* Layout Containers */
+    #header-root { width: 100%; flex-shrink: 0; z-index: 30; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
     .app-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
-    #sidebar-root { z-index: 30; }
     .main-content { flex: 1; overflow-y: auto; padding: 1.5rem; background-color: #f8fafc; position: relative; }
-
-    /* Visibility Utilities */
     .hidden { display: none !important; }
-    .app-view { width: 100%; max-width: 1200px; margin: 0 auto; }
 
-    /* Cards & Containers */
-    .card { background: #ffffff; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); padding: 1.25rem; margin-bottom: 1.5rem; }
-    .view-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-    .subtitle { color: #64748b; font-size: 0.875rem; margin-top: 0.25rem; }
+    /* Header Styling */
+    .header-bar, .app-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; }
+    .header-left, .header-right { display: flex; align-items: center; gap: 0.75rem; }
+    .header-title { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+    .header-meta { font-size: 0.8rem; color: #64748b; }
 
-    /* Buttons */
-    .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 500; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; text-decoration: none; }
-    .btn:hover { opacity: 0.9; }
-    .btn-primary { background-color: #2563eb; color: #ffffff; }
-    .btn-secondary { background-color: #ffffff; border-color: #cbd5e1; color: #334155; }
-    .btn-secondary:hover { background-color: #f1f5f9; }
-    .btn-outline { background-color: transparent; border-color: #cbd5e1; color: #334155; }
-    .btn-outline:hover { background-color: #f8fafc; }
-    .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 0.375rem; }
+    /* Sidebar Drawer System */
+    #sidebar-root { position: fixed; top: 0; bottom: 0; left: 0; width: 280px; background: #ffffff; border-right: 1px solid #e2e8f0; z-index: 50; transform: translateX(-100%); transition: transform 0.25s ease-in-out; box-shadow: 4px 0 15px rgba(0,0,0,0.05); }
+    #sidebar-root.active, .sidebar.active { transform: translateX(0) !important; }
+    .sidebar-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+    .sidebar-menu { padding: 1rem 0; overflow-y: auto; height: calc(100% - 60px); }
+    .sidebar-group { margin-bottom: 1.25rem; }
+    .sidebar-group-title { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; padding: 0 1.25rem 0.5rem; }
+    .sidebar-link, .nav-btn { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.65rem 1.25rem; font-size: 0.875rem; color: #334155; text-decoration: none; border: none; background: transparent; cursor: pointer; text-align: left; transition: background 0.15s; }
+    .sidebar-link:hover, .nav-btn:hover { background-color: #f1f5f9; color: #2563eb; }
 
-    /* Tables */
-    .table-container { width: 100%; overflow-x: auto; }
+    /* Cards & Tables */
+    .card { background: #ffffff; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .view-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; }
     .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-    .data-table th { background-color: #f8fafc; color: #475569; font-weight: 600; padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-    .data-table td { padding: 0.875rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .data-table th { background-color: #f8fafc; color: #475569; font-weight: 600; padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; }
+    .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; }
     .data-table tr:hover td { background-color: #f8fafc; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
 
-    /* Badges */
-    .badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-    .badge-info { background-color: #e0e7ff; color: #3730a3; }
-    .badge-success { background-color: #dcfce7; color: #166534; }
-    .badge-danger { background-color: #fee2e2; color: #991b1b; }
+    /* Buttons & Badges */
+    .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+    .btn-primary { background-color: #2563eb; color: #ffffff; }
+    .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-secondary { background-color: #ffffff; border-color: #cbd5e1; color: #334155; }
+    .btn-secondary:hover { background-color: #f8fafc; }
+    .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 0.375rem; }
+    .badge { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-info { background: #e0e7ff; color: #3730a3; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
 
-    /* Modals & Backdrop */
-    .modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
-    .modal-box { background: #ffffff; border-radius: 0.75rem; max-width: 500px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); padding: 1.5rem; }
-    .modal-lg { max-width: 800px; }
+    /* Modals System (Clean CSS without blocking) */
+    .modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
+    .modal-backdrop.hidden { display: none !important; pointer-events: none !important; }
+    .modal-box { background: #ffffff; border-radius: 0.75rem; max-width: 500px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); padding: 1.5rem; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .modal-header h3 { font-size: 1.125rem; font-weight: 600; color: #0f172a; }
-    .btn-close { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
-
-    /* Form Controls */
     .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; font-size: 0.875rem; font-weight: 500; color: #334155; margin-bottom: 0.375rem; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.35rem; }
     .form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; }
-    .form-control:focus { outline: 2px solid #2563eb; border-color: transparent; }
-    .form-row { display: flex; gap: 1rem; }
-    .form-row .col { flex: 1; }
-    .input-disabled { background-color: #f1f5f9; color: #64748b; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
 
-    /* Sidebar Drawer Styles */
-    .sidebar { width: 260px; background: #ffffff; border-right: 1px solid #e2e8f0; height: 100%; display: flex; flex-direction: column; transition: transform 0.3s; }
-    @media (max-width: 768px) {
-      .sidebar { position: absolute; top: 0; bottom: 0; left: 0; transform: translateX(-100%); z-index: 40; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-      .sidebar.active { transform: translateX(0); }
-    }
+    /* POS Kasir Grid & Layout */
+    .pos-layout { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; height: 100%; }
+    @media (max-width: 900px) { .pos-layout { grid-template-columns: 1fr; } }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+    .product-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; cursor: pointer; transition: transform 0.1s, border-color 0.1s; }
+    .product-card:hover { border-color: #2563eb; transform: translateY(-2px); }
   </style>
 </head>
 <body>
@@ -105,7 +97,6 @@
   <div id="modals-root"></div>
   <div id="login-root"></div>
 
-  <!-- App Entry Script -->
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>
