@@ -38,7 +38,7 @@ export async function loadTenantsList() {
     if (!tbody) return;
 
     if (tenants.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada toko terdaftar.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 1rem;">Belum ada toko terdaftar.</td></tr>';
       return;
     }
 
@@ -48,8 +48,8 @@ export async function loadTenantsList() {
         <td><a href="https://${t.subdomain}.gpro.my.id" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline;">${t.subdomain}.gpro.my.id</a></td>
         <td>${t.total_products || 0} Produk</td>
         <td>${t.total_transactions || 0} Transaksi</td>
-        <td class="text-right">
-          <button class="btn btn-sm btn-primary" onclick="window.impersonateTenant('${t.subdomain}')">
+        <td style="text-align: right;">
+          <button type="button" class="btn btn-sm btn-primary" onclick="window.impersonateTenant('${t.subdomain}')" style="background-color: #2563eb; color: #ffffff; padding: 4px 10px; border-radius: 4px; cursor: pointer;">
             Buka Toko ↗
           </button>
         </td>
@@ -68,7 +68,7 @@ export async function loadAdminUsersList() {
     if (!tbody) return;
 
     if (users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center">Belum ada user terdaftar.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 1rem;">Belum ada user terdaftar.</td></tr>';
       return;
     }
 
@@ -164,7 +164,7 @@ export function renderAdminProductsTable(products) {
   if (!tbody) return;
 
   if (!products || products.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Belum ada barang terdaftar di toko ini.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 1rem;">Belum ada barang terdaftar di toko ini.</td></tr>';
     return;
   }
 
@@ -179,9 +179,9 @@ export function renderAdminProductsTable(products) {
           ${p.stock || 0}
         </span>
       </td>
-      <td class="text-right">
-        <button class="btn btn-sm btn-outline" onclick="window.openStockAdjustModal('${p.id}')">⚖️ Opname</button>
-        <button class="btn btn-sm btn-outline" onclick="window.openStockHistoryModal('${p.id}')">📋 Log</button>
+      <td style="text-align: right;">
+        <button type="button" class="btn btn-sm btn-outline" onclick="window.openStockAdjustModal('${p.id}')">⚖️ Opname</button>
+        <button type="button" class="btn btn-sm btn-outline" onclick="window.openStockHistoryModal('${p.id}')">📋 Log</button>
       </td>
     </tr>
   `).join('');
@@ -247,14 +247,14 @@ window.openStockHistoryModal = async function(productId) {
   if (titleEl) titleEl.textContent = `Riwayat Stok: ${product ? product.name : ''}`;
 
   const tbody = document.getElementById('stock-history-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat riwayat...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 1rem;">Memuat riwayat...</td></tr>';
 
   if (window.openModal) window.openModal('modal-stock-history');
 
   try {
     const res = await getStockHistory(productId);
     if (!res.success || !res.data || res.data.length === 0) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada riwayat mutasi stok.</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 1rem;">Belum ada riwayat mutasi stok.</td></tr>';
       return;
     }
 
@@ -276,7 +276,7 @@ window.openStockHistoryModal = async function(productId) {
       }).join('');
     }
   } catch (err) {
-    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Gagal memuat riwayat.</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 1rem; color: #dc2626;">Gagal memuat riwayat.</td></tr>';
   }
 };
 
