@@ -1,137 +1,100 @@
-import { state, showToast } from '../state.js';
-import { updateHeaderShiftStatus } from './shifts.js';
+import { state } from '../state.js';
+import { api } from '../api.js';
 
-export async function checkAuthSession(tenantInfo) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const ssoToken = urlParams.get('sso_token');
+export function checkAuth() {
+  const savedToken = localStorage.getItem('posta_token');
+  const savedUser = localStorage.getItem('posta_user');
 
-  if (ssoToken) {
+  if (savedToken && savedUser) {
     try {
-      const parts = ssoToken.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        localStorage.setItem('posta_token', ssoToken);
-        localStorage.setItem('posta_user', JSON.stringify(payload));
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    } catch (_) {}
-  }
-
-  const token = localStorage.getItem('posta_token');
-  const userJson = localStorage.getItem('posta_user');
-  const loginOverlay = document.getElementById('login-overlay');
-
-  const domainSpan = document.getElementById('login-current-domain');
-  if (domainSpan) domainSpan.innerText = window.location.hostname;
-
-  if (!token || !userJson) {
-    if (loginOverlay) loginOverlay.classList.remove('hidden');
-    return false;
-  }
-
-  try {
-    const user = JSON.parse(userJson);
-    
-    if (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id && user.role !== 'SUPERADMIN') {
+      state.token = savedToken;
+      state.user = JSON.parse(savedUser);
+      hideLoginModal();
+      return true;
+    } catch (e) {
       logout();
       return false;
     }
-
-    state.currentUser = user;
-    state.tenantId = tenantInfo.id;
-    applyRolePermissions(user);
-    updateHeaderShiftStatus();
-
-    if (loginOverlay) loginOverlay.classList.add('hidden');
-
-    if (user.role !== 'SUPERADMIN' && typeof window.checkActiveShift === 'function') {
-      window.checkActiveShift();
+  } else {
+    // Jangan kunci layar jika di domain superadmin / posta pusat
+    const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+    if (!isSuperDomain) {
+      showLoginModal();
     }
-
-    return true;
-  } catch (e) {
-    logout();
     return false;
   }
 }
 
-export async function submitLogin() {
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value.trim();
-
-  if (!username || !password) {
-    showToast('Username dan password wajib diisi!', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('btn-submit-login');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memvalidasi...';
-
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const result = await res.json();
-
-    if (result.success) {
-      localStorage.setItem('posta_token', result.token);
-      localStorage.setItem('posta_user', JSON.stringify(result.user));
-      state.currentUser = result.user;
-      state.tenantId = result.user.tenant_id;
-
-      document.getElementById('login-overlay').classList.add('hidden');
-      applyRolePermissions(result.user);
-      updateHeaderShiftStatus();
-      showToast(`Selamat datang, ${result.user.name}!`);
-
-      if (result.user.role === 'SUPERADMIN') {
-        document.getElementById('view-admin-portal').classList.remove('hidden');
-        if (typeof window.loadAdminTenants === 'function') window.loadAdminTenants();
-      } else {
-        if (typeof window.loadProducts === 'function') window.loadProducts();
-        if (typeof window.checkActiveShift === 'function') window.checkActiveShift();
-      }
-    } else {
-      showToast(result.error || 'Username atau password salah', 'error');
-    }
-  } catch (err) {
-    showToast('Gagal menghubungi server.', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span>Masuk Sekarang</span> <i class="fa-solid fa-arrow-right"></i>';
+export function showLoginModal() {
+  const loginModal = document.getElementById('login-modal') || document.querySelector('.login-backdrop') || document.getElementById('login-root');
+  if (loginModal) {
+    loginModal.classList.remove('hidden');
+    loginModal.style.pointerEvents = 'auto';
   }
 }
 
-export function toggleLoginPasswordVisibility() {
-  const pass = document.getElementById('login-password');
-  const eye = document.getElementById('login-eye-icon');
-  if (pass.type === 'password') {
-    pass.type = 'text';
-    eye.className = 'fa-solid fa-eye-slash';
-  } else {
-    pass.type = 'password';
-    eye.className = 'fa-solid fa-eye';
+export function hideLoginModal() {
+  const loginModal = document.getElementById('login-modal') || document.querySelector('.login-backdrop') || document.getElementById('login-root');
+  if (loginModal) {
+    loginModal.classList.add('hidden');
+    loginModal.style.pointerEvents = 'none';
+  }
+}
+
+export async function handleLoginSubmit(event) {
+  if (event) event.preventDefault();
+  
+  const usernameInput = document.getElementById('login-username') || document.querySelector('input[name="username"]');
+  const passwordInput = document.getElementById('login-password') || document.querySelector('input[name="password"]');
+  const errorEl = document.getElementById('login-error');
+
+  const username = usernameInput?.value.trim();
+  const password = passwordInput?.value.trim();
+
+  if (!username || !password) {
+    if (errorEl) {
+      errorEl.textContent = 'Username dan password wajib diisi!';
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  try {
+    const res = await api('/api/auth/login', 'POST', { username, password });
+    if (res.success && res.token) {
+      state.token = res.token;
+      state.user = res.user;
+
+      localStorage.setItem('posta_token', res.token);
+      localStorage.setItem('posta_user', JSON.stringify(res.user));
+
+      hideLoginModal();
+      if (errorEl) errorEl.classList.add('hidden');
+
+      if (window.initNavigation) window.initNavigation();
+      if (window.updateNavVisibility) window.updateNavVisibility();
+    } else {
+      if (errorEl) {
+        errorEl.textContent = res.error || 'Login gagal, periksa username/password.';
+        errorEl.classList.remove('hidden');
+      }
+    }
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = 'Gagal menghubungi server.';
+      errorEl.classList.remove('hidden');
+    }
   }
 }
 
 export function logout() {
   localStorage.removeItem('posta_token');
   localStorage.removeItem('posta_user');
-  location.reload();
+  state.token = null;
+  state.user = null;
+  window.location.reload();
 }
 
-export function applyRolePermissions(user) {
-  const nameLabels = document.querySelectorAll('.current-user-name');
-  nameLabels.forEach(el => el.innerText = `${user.name} (${user.role})`);
-
-  if (user.role === 'CASHIER') {
-    const restricted = document.querySelectorAll('.role-admin-only');
-    restricted.forEach(el => el.classList.add('hidden'));
-  } else {
-    const restricted = document.querySelectorAll('.role-admin-only');
-    restricted.forEach(el => el.classList.remove('hidden'));
-  }
-}
+window.handleLoginSubmit = handleLoginSubmit;
+window.postaLogout = logout;
+window.postaAuth = { checkAuth, showLoginModal, hideLoginModal, logout };

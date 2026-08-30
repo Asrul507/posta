@@ -2,29 +2,22 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Posta POS - Sistem Kasir Multi-Tenant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Posta POS - Cloud POS System</title>
   
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+  <!-- FontAwesome Icons & Posta CSS Native -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased h-screen flex flex-col overflow-hidden font-sans">
+<body class="bg-gray-100 text-gray-800 antialiased h-screen overflow-hidden flex flex-col font-sans">
 
-  <div id="toast-container" class="fixed top-4 right-4 z-[150] space-y-2 pointer-events-none"></div>
+  <!-- Wadah SPA Utama Posta -->
+  <div id="app" class="flex flex-col h-full w-full relative"></div>
 
-  <!-- Placeholder Komponen Modular -->
-  <div id="comp-login"></div>
-  <div id="comp-sidebar"></div>
-  <div id="comp-header"></div>
-  <div id="comp-view-pos"></div>
-  <div id="comp-view-products"></div>
-  <div id="comp-view-history"></div>
-  <div id="comp-view-reports"></div>
-  <div id="comp-view-admin"></div>
-  <div id="comp-modals"></div>
+  <!-- Audio Alerts -->
+  <audio id="snd-beep" src="/audio/beep.mp3" preload="auto"></audio>
 
+  <!-- Entry Script -->
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

@@ -1,343 +1,158 @@
-import { state, formatRupiah, showToast } from '../state.js';
-import { API } from '../api.js';
-import { checkAuthSession } from './auth.js';
+import { api } from '../api.js';
+import { state } from '../state.js';
 
-// =========================================================================
-// 1. INISIALISASI SESI TOKO & LOGIN
-// =========================================================================
-export async function initTenantSession() {
-  try {
-    const res = await fetch('/api/tenant/info');
-    const result = await res.json();
+let cart = [];
 
-    if (!result.success) {
-      showToast(result.error || 'Toko tidak terdaftar', 'error');
-      document.body.innerHTML = `
-        <div class="h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center font-sans text-slate-100">
-          <div class="w-16 h-16 bg-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-4 font-bold border border-rose-500/30">!</div>
-          <h1 class="text-xl font-black mb-1">Toko Tidak Ditemukan</h1>
-          <p class="text-xs text-slate-400 max-w-sm mb-4">${result.error || 'Subdomain tidak aktif'}</p>
-          <a href="https://posta.gpro.my.id" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg">Kembali ke Portal Hub</a>
-        </div>
-      `;
-      return false;
-    }
-
-    state.tenantId = result.is_admin ? 'admin' : result.data.id;
-    state.tenantInfo = result.is_admin ? { id: 'admin', is_admin: true } : { ...result.data, is_admin: false };
-
-    // Cek Autentikasi / Sesi Login User
-    const isAuthed = await checkAuthSession(state.tenantInfo);
-    if (!isAuthed) return false;
-
-    // Jika yang diakses adalah portal Superadmin (posta.gpro.my.id)
-    if (result.is_admin) {
-      const viewPos = document.getElementById('view-pos');
-      const bottomNav = document.querySelector('nav');
-      const header = document.querySelector('header');
-      const mobileBar = document.getElementById('mobile-checkout-bar');
-      const adminView = document.getElementById('view-admin-portal');
-
-      if (viewPos) viewPos.classList.add('hidden');
-      if (bottomNav) bottomNav.classList.add('hidden');
-      if (header) header.classList.add('hidden');
-      if (mobileBar) mobileBar.classList.add('hidden');
-
-      if (adminView) {
-        adminView.classList.remove('hidden');
-        if (typeof window.loadAdminTenants === 'function') {
-          window.loadAdminTenants();
-        }
-      }
-      return false;
-    }
-
-    // Update label nama toko di header dan sidebar
-    const storeSubtitles = document.querySelectorAll('#page-title + span, #sidebar-drawer .font-bold.text-slate-800');
-    storeSubtitles.forEach(el => {
-      el.innerText = result.data.name;
-    });
-
-    return true;
-  } catch (err) {
-    showToast('Gagal memuat sesi toko.', 'error');
-    return false;
-  }
+export async function initPOSView() {
+  console.log('Inisialisasi Kasir POS Dinamis...');
+  renderPOSCart();
+  await loadPOSProducts();
+  setupPOSEvents();
 }
 
-// =========================================================================
-// 2. MUAT PRODUK TOKO
-// =========================================================================
-export async function loadProducts() {
-  if (!state.tenantId) {
-    const ok = await initTenantSession();
-    if (!ok) return;
-  }
-
-  const grid = document.getElementById('product-grid');
-  try {
-    const result = await API.getProducts();
-    if (result.success && result.data && result.data.length > 0) {
-      state.products = result.data;
-      renderCategories();
-      renderProductGrid();
-      renderProductTable();
-      setupPODatalist();
-    } else {
-      state.products = [];
-      if (grid) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Belum ada produk aktif di toko ini.</div>`;
-      }
-      renderProductTable();
-    }
-  } catch (err) {
-    if (grid) {
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat katalog barang.</div>`;
-    }
-  }
-}
-
-// Dipanggil saat tab 'Master Produk' dibuka
-export function loadMasterProducts() {
-  if (!state.products || state.products.length === 0) {
-    loadProducts();
-  } else {
-    renderProductTable();
-  }
-}
-
-// =========================================================================
-// 3. KATEGORI PRODUK
-// =========================================================================
-export function renderCategories() {
-  const container = document.getElementById('category-container');
+export async function loadPOSProducts() {
+  const container = document.getElementById('pos-product-grid');
   if (!container) return;
 
-  const categories = ['ALL', ...new Set(state.products.map(p => p.category_name).filter(Boolean))];
-  container.innerHTML = categories.map(cat => `
-    <button onclick="window.filterCategory('${cat}')" 
-      class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${state.selectedCategory === cat ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} shrink-0 transition">
-      ${cat === 'ALL' ? 'Semua' : cat}
-    </button>
-  `).join('');
+  try {
+    const res = await api('/api/products', 'GET');
+    const products = Array.isArray(res) ? res : (res.data || []);
+    state.products = products;
+    renderPOSGrid(products);
+  } catch (err) {
+    console.error('Gagal mengambil produk kasir:', err);
+    container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #ef4444;">Gagal memuat barang. Silakan refresh.</div>';
+  }
 }
 
-export function filterCategory(cat) {
-  state.selectedCategory = cat;
-  renderCategories();
-  renderProductGrid();
-}
+function renderPOSGrid(products) {
+  const container = document.getElementById('pos-product-grid');
+  if (!container) return;
 
-// =========================================================================
-// 4. GRID KATALOG KASIR
-// =========================================================================
-export function renderProductGrid() {
-  const grid = document.getElementById('product-grid');
-  if (!grid) return;
-
-  const keyword = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const filtered = (state.products || []).filter(p => {
-    const matchCat = state.selectedCategory === 'ALL' || p.category_name === state.selectedCategory;
-    const matchSearch = p.name.toLowerCase().includes(keyword) || (p.barcode && String(p.barcode).toLowerCase().includes(keyword));
-    return matchCat && matchSearch;
-  });
-
-  if (filtered.length === 0) {
-    grid.innerHTML = `<div class="col-span-full py-8 text-center text-slate-400 text-xs">Produk tidak ditemukan</div>`;
+  if (!products || products.length === 0) {
+    container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #94a3b8;">Belum ada produk di toko ini.</div>';
     return;
   }
 
-  grid.innerHTML = filtered.map(p => `
-    <div onclick="window.addToCart('${p.id}')" class="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 transition-all flex flex-col justify-between shadow-sm cursor-pointer active:scale-95">
+  container.innerHTML = products.map(p => `
+    <div class="product-card" onclick="window.addToPOSCart('${p.id}')">
       <div>
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">${p.category_name || 'Umum'}</span>
-        <h4 class="font-semibold text-xs text-slate-800 line-clamp-2 mt-0.5">${p.name}</h4>
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">${p.name}</h4>
+        <div style="color: #2563eb; font-weight: 700; font-size: 0.9rem;">Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</div>
       </div>
-      <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-        <span class="font-bold text-xs text-emerald-600 block">${formatRupiah(p.price)}</span>
-        <span class="text-[10px] font-medium text-slate-500">Stok: <b class="${p.stock <= 3 ? 'text-rose-500' : 'text-slate-700'}">${p.stock}</b></span>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.75rem;">
+        <span style="color: ${p.stock <= 0 ? '#ef4444' : '#16a34a'}; font-weight: 600;">Stok: ${p.stock || 0}</span>
+        <button type="button" class="btn btn-sm btn-outline" style="padding: 2px 8px;">+ Tambah</button>
       </div>
     </div>
   `).join('');
 }
 
-// =========================================================================
-// 5. TABEL MASTER PRODUK
-// =========================================================================
-export function renderProductTable() {
-  const tbody = document.getElementById('master-products-tbody');
-  if (!tbody) return;
+window.addToPOSCart = function(productId) {
+  const product = (state.products || []).find(p => String(p.id) === String(productId));
+  if (!product) return;
 
-  const keyword = (document.getElementById('prod-table-search')?.value || '').toLowerCase();
-  const filtered = (state.products || []).filter(p => 
-    p.name.toLowerCase().includes(keyword) || 
-    (p.barcode && String(p.barcode).toLowerCase().includes(keyword)) ||
-    (p.category_name && p.category_name.toLowerCase().includes(keyword))
-  );
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(p => `
-    <tr class="hover:bg-slate-50">
-      <td class="py-2.5 px-3 font-mono text-slate-500 font-bold">${p.barcode || '-'}</td>
-      <td class="py-2.5 px-3 font-bold text-slate-800">${p.name}</td>
-      <td class="py-2.5 px-3 text-slate-600"><span class="bg-slate-100 px-2 py-0.5 rounded-md">${p.category_name || 'Umum'}</span></td>
-      <td class="py-2.5 px-3 text-right text-slate-600">${formatRupiah(p.cost_price || 0)}</td>
-      <td class="py-2.5 px-3 text-right font-bold text-emerald-600">${formatRupiah(p.price)}</td>
-      <td class="py-2.5 px-3 text-center">
-        <span class="px-2 py-0.5 rounded-full font-bold ${p.stock <= 3 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
-          ${p.stock} ${p.unit || 'pcs'}
-        </span>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// =========================================================================
-// 6. SETUP DATALIST PO
-// =========================================================================
-export function setupPODatalist() {
-  const datalist = document.getElementById('master-products-datalist');
-  if (!datalist) return;
-  datalist.innerHTML = (state.products || []).map(p => `
-    <option value="${p.barcode || p.name}">[${p.barcode || 'NO-BARCODE'}] ${p.name} - Stok: ${p.stock}</option>
-  `).join('');
-}
-
-// =========================================================================
-// 7. KERANJANG BELANJA KASIR
-// =========================================================================
-export function addToCart(productId) {
-  const product = state.products.find(p => p.id === productId);
-  if (!product || product.stock <= 0) {
-    showToast("Stok produk habis!", "error");
-    return;
-  }
-
-  const existing = state.cart.find(c => c.id === productId);
+  const existing = cart.find(i => String(i.id) === String(productId));
   if (existing) {
-    if (existing.qty < product.stock) {
-      existing.qty += 1;
-    } else {
-      showToast(`Stok ${product.name} hanya tersisa ${product.stock}`, "error");
-    }
+    existing.qty += 1;
   } else {
-    // Simpan data produk lengkap (termasuk cost_price) ke keranjang
-    state.cart.push({ 
+    cart.push({
       id: product.id,
       name: product.name,
-      price: product.price,
-      cost_price: product.cost_price || 0,
-      stock: product.stock,
-      qty: 1 
+      price: Number(product.price || 0),
+      qty: 1
     });
   }
-  updateCartUI();
-}
+  renderPOSCart();
+};
 
-export function updateCartUI() {
-  const listDesktop = document.getElementById('cart-list');
-  const listMobile = document.getElementById('mobile-cart-items-list');
-  const totalQty = state.cart.reduce((acc, item) => acc + item.qty, 0);
-  const totalPrice = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+window.updatePOSQty = function(productId, delta) {
+  const item = cart.find(i => String(i.id) === String(productId));
+  if (!item) return;
 
-  const renderItemHtml = (item) => `
-    <div class="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 gap-2">
-      <div class="flex-1 min-w-0">
-        <h5 class="text-xs font-semibold text-slate-800 truncate">${item.name}</h5>
-        <span class="text-xs text-emerald-600 font-bold">${formatRupiah(item.price)}</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <button onclick="window.updateQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold transition">-</button>
-        <input type="number" min="1" value="${item.qty}" onchange="window.setDirectCartQty('${item.id}', this.value)" class="w-10 text-center text-xs font-bold bg-white border border-slate-300 rounded p-0.5" />
-        <button onclick="window.updateQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold transition">+</button>
-        <button onclick="window.removeCartItem('${item.id}')" class="text-rose-500 hover:text-rose-700 ml-1 text-xs p-1">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-    </div>
-  `;
-
-  if (listDesktop) {
-    listDesktop.innerHTML = state.cart.length === 0 
-      ? `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>` 
-      : state.cart.map(renderItemHtml).join('');
+  item.qty += delta;
+  if (item.qty <= 0) {
+    cart = cart.filter(i => String(i.id) !== String(productId));
   }
+  renderPOSCart();
+};
 
-  if (listMobile) {
-    listMobile.innerHTML = state.cart.length === 0 
-      ? `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>` 
-      : state.cart.map(renderItemHtml).join('');
-  }
+window.clearPOSCart = function() {
+  cart = [];
+  renderPOSCart();
+};
 
-  const elTotalQty = document.getElementById('cart-total-qty');
-  if (elTotalQty) elTotalQty.innerText = totalQty;
+function renderPOSCart() {
+  const container = document.getElementById('pos-cart-items');
+  const totalEl = document.getElementById('pos-total-amount');
+  const payBtn = document.getElementById('btn-checkout-pos');
 
-  const elTotalPrice = document.getElementById('cart-total-price');
-  if (elTotalPrice) elTotalPrice.innerText = formatRupiah(totalPrice);
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-  const elBottomBadge = document.getElementById('bottom-cart-badge');
-  if (elBottomBadge) elBottomBadge.innerText = totalQty;
+  if (totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+  if (payBtn) payBtn.disabled = cart.length === 0;
 
-  const elMobBadge = document.getElementById('mobile-cart-badge');
-  if (elMobBadge) elMobBadge.innerText = `${totalQty} item`;
+  if (!container) return;
 
-  const elMobTotal = document.getElementById('mobile-cart-total');
-  if (elMobTotal) elMobTotal.innerText = formatRupiah(totalPrice);
-
-  const hasItems = state.cart.length > 0;
-  const btnCheckout = document.getElementById('btn-checkout');
-  if (btnCheckout) btnCheckout.disabled = !hasItems;
-
-  const mobBtn = document.getElementById('mobile-btn-checkout');
-  if (mobBtn) mobBtn.disabled = !hasItems;
-}
-
-export function updateQty(productId, delta) {
-  const item = state.cart.find(c => c.id === productId);
-  const product = state.products.find(p => p.id === productId);
-  if (!item || !product) return;
-
-  const targetQty = item.qty + delta;
-  if (targetQty > product.stock) {
-    showToast(`Stok ${product.name} sisa ${product.stock}`, 'error');
+  if (cart.length === 0) {
+    container.innerHTML = '<div class="text-center" style="padding: 2rem; color: #94a3b8;">Keranjang kosong</div>';
     return;
   }
-  if (targetQty <= 0) {
-    state.cart = state.cart.filter(c => c.id !== productId);
-  } else {
-    item.qty = targetQty;
+
+  container.innerHTML = cart.map(item => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
+      <div>
+        <div style="font-weight: 600; font-size: 0.85rem; color: #1e293b;">${item.name}</div>
+        <div style="font-size: 0.75rem; color: #64748b;">Rp ${item.price.toLocaleString('id-ID')} x ${item.qty}</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="window.updatePOSQty('${item.id}', -1)">-</button>
+        <span style="font-weight: 700; font-size: 0.85rem;">${item.qty}</span>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="window.updatePOSQty('${item.id}', 1)">+</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.handleCheckoutPOS = async function() {
+  if (cart.length === 0) return;
+
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const paymentMethod = document.getElementById('pos-payment-method')?.value || 'CASH';
+
+  try {
+    const payload = {
+      items: cart.map(i => ({ productId: i.id, quantity: i.qty, price: i.price })),
+      totalAmount: total,
+      paymentMethod
+    };
+
+    const res = await api('/api/checkout', 'POST', payload);
+    if (res.success) {
+      alert(`Transaksi Sukses! Total: Rp ${total.toLocaleString('id-ID')}`);
+      window.clearPOSCart();
+      await loadPOSProducts();
+    } else {
+      alert(res.error || 'Gagal memproses transaksi');
+    }
+  } catch (err) {
+    alert('Terjadi kesalahan koneksi.');
   }
-  updateCartUI();
-}
+};
 
-export function setDirectCartQty(productId, newQty) {
-  const item = state.cart.find(c => c.id === productId);
-  const product = state.products.find(p => p.id === productId);
-  if (!item || !product) return;
-
-  let qty = parseInt(newQty) || 1;
-  if (qty > product.stock) {
-    qty = product.stock;
-    showToast(`Maksimum stok ${product.name} adalah ${product.stock}`, 'error');
+function setupPOSEvents() {
+  const searchInput = document.getElementById('pos-search-input');
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      const matched = (state.products || []).filter(p => 
+        (p.name && p.name.toLowerCase().includes(q)) || 
+        (p.sku && p.sku.toLowerCase().includes(q))
+      );
+      renderPOSGrid(matched);
+    };
   }
-  if (qty <= 0) {
-    state.cart = state.cart.filter(c => c.id !== productId);
-  } else {
-    item.qty = qty;
-  }
-  updateCartUI();
 }
 
-export function removeCartItem(productId) {
-  state.cart = state.cart.filter(c => c.id !== productId);
-  updateCartUI();
-}
-
-export function clearCart() {
-  state.cart = [];
-  updateCartUI();
-}
+window.initPOSView = initPOSView;
+window.loadPOSProducts = loadPOSProducts;

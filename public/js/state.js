@@ -1,8 +1,9 @@
 export const state = {
+  token: null,
+  user: null,
   tenantId: null,
   tenantInfo: null,
-  currentUser: null,
-  currentShift: null, // Menyimpan sesi shift aktif
+  activeShift: null, // Menyimpan sesi shift kasir yang sedang aktif
   products: [],
   cart: [],
   selectedCategory: 'ALL'

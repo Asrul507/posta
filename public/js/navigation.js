@@ -1,65 +1,92 @@
-export function toggleSidebar(show) {
-  const sidebar = document.getElementById('sidebar-drawer');
-  const backdrop = document.getElementById('sidebar-backdrop');
-  if (!sidebar || !backdrop) return;
+import { state } from './state.js';
+import { initAdminView } from './views/admin.js';
+import { initPOSView } from './views/pos.js';
 
-  if (show === undefined) {
-    sidebar.classList.toggle('-translate-x-full');
-    backdrop.classList.toggle('hidden');
-  } else if (show) {
-    sidebar.classList.remove('-translate-x-full');
-    backdrop.classList.remove('hidden');
-  } else {
-    sidebar.classList.add('-translate-x-full');
-    backdrop.classList.add('hidden');
-  }
-}
+export function navigateTo(viewName) {
+  console.log('Navigasi ke:', viewName);
 
-export function toggleMobileCartDrawer(show) {
-  const drawer = document.getElementById('mobile-cart-drawer');
-  if (!drawer) return;
-  if (show === undefined) {
-    drawer.classList.toggle('hidden');
-  } else if (show) {
-    drawer.classList.remove('hidden');
-  } else {
-    drawer.classList.add('hidden');
-  }
-}
-
-export function switchView(viewName) {
-  const views = [
-    'view-pos',
-    'view-products',
-    'view-history',
-    'view-po-history',
-    'view-daily-report',
-    'view-monthly-report'
-  ];
-
-  // Sembunyikan semua section view
-  views.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add('hidden');
+  // 1. Sembunyikan semua kontainer view
+  const views = document.querySelectorAll('.app-view, [id^="view-"]');
+  views.forEach(v => {
+    v.classList.add('hidden');
+    v.style.display = 'none';
   });
 
-  // Tampilkan view target dan panggil fungsinya
-  if (viewName === 'POS') {
-    document.getElementById('view-pos')?.classList.remove('hidden');
-  } else if (viewName === 'PRODUCTS') {
-    document.getElementById('view-products')?.classList.remove('hidden');
-    if (typeof window.loadMasterProducts === 'function') window.loadMasterProducts();
-  } else if (viewName === 'HISTORY') {
-    document.getElementById('view-history')?.classList.remove('hidden');
-    if (typeof window.fetchTransactions === 'function') window.fetchTransactions();
-  } else if (viewName === 'PO_HISTORY') {
-    document.getElementById('view-po-history')?.classList.remove('hidden');
-    if (typeof window.fetchPOHistory === 'function') window.fetchPOHistory();
-  } else if (viewName === 'DAILY_REPORT') {
-    document.getElementById('view-daily-report')?.classList.remove('hidden');
-    if (typeof window.loadDailyReport === 'function') window.loadDailyReport();
-  } else if (viewName === 'MONTHLY_REPORT') {
-    document.getElementById('view-monthly-report')?.classList.remove('hidden');
-    if (typeof window.loadMonthlyReport === 'function') window.loadMonthlyReport();
+  // 2. Tampilkan view yang dipilih
+  const targetView = document.getElementById(`view-${viewName}`);
+  if (targetView) {
+    targetView.classList.remove('hidden');
+    targetView.style.display = 'block';
+  }
+
+  // 3. Update status menu aktif di header & sidebar
+  document.querySelectorAll('.nav-item, .sidebar-link, [data-view]').forEach(btn => {
+    btn.classList.remove('active', 'bg-blue-50', 'text-blue-600', 'font-bold');
+  });
+  document.querySelectorAll(`[data-view="${viewName}"]`).forEach(btn => {
+    btn.classList.add('active', 'bg-blue-50', 'text-blue-600', 'font-bold');
+  });
+
+  // 4. Tutup sidebar jika dalam mode mobile
+  if (window.toggleSidebar) {
+    window.toggleSidebar(false);
+  }
+
+  state.currentView = viewName;
+
+  // 5. Jalankan inisialisasi modul terkait
+  if (viewName === 'admin' && typeof initAdminView === 'function') {
+    initAdminView();
+  } else if (viewName === 'pos' && typeof initPOSView === 'function') {
+    initPOSView();
+  } else if (viewName === 'history' && typeof window.initHistoryView === 'function') {
+    window.initHistoryView();
+  } else if (viewName === 'reports' && typeof window.initReportsView === 'function') {
+    window.initReportsView();
+  } else if (viewName === 'products' && typeof window.loadAdminProducts === 'function') {
+    window.loadAdminProducts();
   }
 }
+
+export function updateNavVisibility() {
+  const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+  const role = state.user?.role || 'KASIR';
+
+  const posNavs = document.querySelectorAll('[data-view="pos"]');
+  posNavs.forEach(el => {
+    el.style.display = isSuperDomain ? 'none' : '';
+  });
+
+  const adminNavs = document.querySelectorAll('[data-view="admin"], .nav-admin-only');
+  adminNavs.forEach(el => {
+    el.style.display = (isSuperDomain || role === 'SUPERADMIN' || role === 'OWNER' || role === 'ADMIN') ? '' : 'none';
+  });
+}
+
+export function initNavigation() {
+  console.log('Inisialisasi Navigasi Posta...');
+
+  // Event listener untuk tombol navigasi
+  document.addEventListener('click', (e) => {
+    const navBtn = e.target.closest('[data-view]');
+    if (navBtn) {
+      e.preventDefault();
+      const target = navBtn.getAttribute('data-view');
+      if (target) navigateTo(target);
+    }
+  });
+
+  updateNavVisibility();
+
+  // BUKA DASHBOARD DEVELOPER DI POSTA PUSAT, ATAU KASIR POS DI TOKO
+  const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+  if (isSuperDomain || state.user?.role === 'SUPERADMIN') {
+    navigateTo('admin');
+  } else {
+    navigateTo('pos');
+  }
+}
+
+window.navigateTo = navigateTo;
+window.updateNavVisibility = updateNavVisibility;
+window.initNavigation = initNavigation;

@@ -1,29 +1,63 @@
-export function playBeepSound(type = 'success') {
-  try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+// Web Audio Context Synthesizer
+let audioCtx = null;
 
-    if (type === 'success') {
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.12);
-    } else {
-      osc.frequency.setValueAtTime(320, audioCtx.currentTime);
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.28);
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
     }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+export function playBeep(freq = 800, duration = 0.1, type = 'sine') {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch (e) {
+    console.warn('Audio play failed:', e);
+  }
+}
+
+export function playSuccessSound() {
+  try {
+    playBeep(600, 0.08, 'sine');
+    setTimeout(() => playBeep(900, 0.12, 'sine'), 90);
   } catch (e) {}
 }
 
-export function triggerVisualFlash() {
-  const feedback = document.getElementById('scanner-feedback');
-  if (!feedback) return;
-  feedback.classList.remove('scan-flash');
-  void feedback.offsetWidth;
-  feedback.classList.add('scan-flash');
+export function playAlertSound() {
+  try {
+    playBeep(300, 0.15, 'sawtooth');
+    setTimeout(() => playBeep(250, 0.2, 'sawtooth'), 160);
+  } catch (e) {}
 }
+
+export const playErrorSound = playAlertSound;
+export const playSuccess = playSuccessSound;
+export const playBeepSound = playBeep;
+
+window.postaAudio = {
+  playBeep,
+  playSuccessSound,
+  playAlertSound
+};

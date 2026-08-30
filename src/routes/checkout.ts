@@ -1,4 +1,5 @@
-import { Env } from "../types";
+import { Hono } from 'hono';
+import { recordStockMovement } from '../services/inventory';
 
 
 export async function handleCheckout(request: Request, env: Env): Promise<Response> {
@@ -17,97 +18,80 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
       cashier_name?: string;
     } = await request.json();
 
-    const url = new URL(request.url);
-    const host = url.hostname.toLowerCase().split(":")[0];
-    const subdomain = host.endsWith(".gpro.my.id") ? host.replace(".gpro.my.id", "") : "berkah";
+export const checkoutRoute = new Hono<{ Bindings: Bindings }>();
 
-    // 1. Dapatkan tenant_id yang valid dari database berdasarkan subdomain atau payload
-    let tenantId = payload.tenant_id;
-    const tenant = await env.DB.prepare(
-      "SELECT id FROM tenants WHERE subdomain = ? OR id = ? LIMIT 1"
-    ).bind(subdomain, tenantId || "").first();
+function extractTenantFromHost(hostname: string): string {
+  const host = hostname.toLowerCase().split(':')[0];
+  if (host === "posta.gpro.my.id" || host === "localhost" || host === "127.0.0.1") return "posta";
+  if (host.endsWith(".gpro.my.id")) {
+    const sub = host.replace(".gpro.my.id", "");
+    if (sub && sub !== "www") return sub;
+  }
+  return "posta";
+}
 
-    if (!tenant) {
-      return Response.json({ success: false, error: "Toko/Tenant tidak valid atau tidak ditemukan di database." }, { status: 400 });
+checkoutRoute.post('/', async (c) => {
+  try {
+    const sub = extractTenantFromHost(new URL(c.req.url).hostname);
+    let tenantId: string | null = null;
+    if (sub !== "posta") {
+      const tenant = await c.env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ?").bind(sub).first<{ id: string }>();
+      if (tenant) tenantId = tenant.id;
     }
 
-    tenantId = tenant.id as string;
+    const body = await c.req.json();
+    const items = body.items || body.cart || [];
+    const totalAmount = Number(body.totalAmount || body.total || body.amount || 0);
+    const paymentMethod = body.paymentMethod || body.payment_method || 'CASH';
+    const shiftId = body.shiftId || null;
+    const customerName = body.customerName || 'Pelanggan Umum';
 
-    if (!payload.items || payload.items.length === 0) {
-      return Response.json({ success: false, error: "Keranjang belanja kosong." }, { status: 400 });
+    if (!Array.isArray(items) || items.length === 0) {
+      return c.json({ success: false, error: 'Keranjang belanja kosong' }, 400);
     }
 
-    const transactionId = "trx_" + Date.now();
-    const invoiceNumber = "INV-" + Date.now().toString().slice(-8);
-    const totalAmount = payload.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
-    const paidAmount = Number(payload.paid_amount) || totalAmount;
-    const changeAmount = Math.max(0, paidAmount - totalAmount);
+    const trxId = "trx_" + Date.now();
 
-    const statements: any[] = [];
+    // 1. Simpan Transaksi
+    await c.env.DB.prepare(`
+      INSERT INTO transactions (id, tenant_id, total_amount, payment_method, shift_id, customer_name, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(trxId, tenantId, totalAmount, paymentMethod, shiftId, customerName).run();
 
-    // 2. Insert Header Transaksi
-    statements.push(
-      env.DB.prepare(`
-        INSERT INTO transactions (id, tenant_id, invoice_number, payment_method, total_amount, paid_amount, change_amount, cashier_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        transactionId,
-        tenantId,
-        invoiceNumber,
-        payload.payment_method || "CASH",
-        totalAmount,
-        paidAmount,
-        changeAmount,
-        payload.cashier_name || "Kasir"
-      )
-    );
+    // 2. Simpan Item & Kurangi Stok
+    for (const item of items) {
+      const productId = item.productId || item.id;
+      const qty = Number(item.quantity || item.qty || 1);
+      const price = Number(item.price || 0);
 
-    // 3. Insert Items & Potong Stok Produk
-    for (const item of payload.items) {
-      const itemId = "titem_" + Math.random().toString(36).substring(2, 9);
-      const subtotal = item.price * item.qty;
+      await c.env.DB.prepare(`
+        INSERT INTO transaction_items (transaction_id, product_id, quantity, price, subtotal)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind(trxId, productId, qty, price, (qty * price)).run();
 
-      statements.push(
-        env.DB.prepare(`
-          INSERT INTO transaction_items (id, transaction_id, product_id, product_name, cost_price, price, qty, subtotal)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          itemId,
-          transactionId,
-          item.id || "manual_item",
-          item.name,
-          item.cost_price || 0,
-          item.price,
-          item.qty,
-          subtotal
-        )
-      );
-
-      // Kurangi stok jika item memiliki id produk valid di katalog
-      if (item.id) {
-        statements.push(
-          env.DB.prepare("UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ? AND tenant_id = ?")
-            .bind(item.qty, item.id, tenantId)
-        );
+      // Mutasi stok
+      try {
+        await recordStockMovement(c.env.DB, {
+          productId,
+          qtyChange: -qty,
+          type: 'SALE',
+          referenceId: trxId,
+          notes: `Penjualan POS #${trxId}`
+        });
+      } catch (stkErr) {
+        console.warn('Gagal potong stok produk:', productId, stkErr);
       }
     }
 
-    // Eksekusi secara atomic (Batch Transaction)
-    await env.DB.batch(statements);
-
-    return Response.json({
+    return c.json({
       success: true,
-      message: "Transaksi berhasil disimpan",
-      data: {
-        transaction_id: transactionId,
-        invoice_number: invoiceNumber,
-        total_amount: totalAmount,
-        paid_amount: paidAmount,
-        change_amount: changeAmount
-      }
+      message: 'Transaksi berhasil!',
+      transactionId: trxId
     });
   } catch (err: any) {
-    console.error("Checkout Error:", err);
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    console.error('Checkout error:', err);
+    return c.json({ success: false, error: err.message || 'Gagal memproses pembayaran' }, 500);
   }
-}
+});
+
+export default checkoutRoute;

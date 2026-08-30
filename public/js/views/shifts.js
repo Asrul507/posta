@@ -1,195 +1,183 @@
-import { state, formatRupiah, showToast } from '../state.js';
+import { api } from '../api.js';
+import { state } from '../state.js';
+import { playSuccessSound, playAlertSound } from '../audio.js';
 
-export function updateHeaderShiftStatus() {
+export function updateHeaderShiftStatus(shift) {
   const badge = document.getElementById('header-shift-badge');
-  const userInfo = document.getElementById('header-user-info');
-  const storeName = document.getElementById('header-store-name');
+  const openBtn = document.getElementById('btn-open-shift-header');
+  const closeBtn = document.getElementById('btn-close-shift-header');
 
-  if (storeName && state.tenantInfo?.name) {
-    storeName.innerText = state.tenantInfo.name;
-  }
-
-  if (userInfo && state.currentUser) {
-    userInfo.innerText = `${state.currentUser.name} (${state.currentUser.role})`;
-  }
-
-  if (badge) {
-    if (state.currentShift && state.currentShift.status === 'OPEN') {
-      badge.className = 'px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[10px]';
-      badge.innerText = `Shift ${state.currentShift.shift_name || 'Pagi'} (Aktif)`;
-    } else {
-      badge.className = 'px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px]';
-      badge.innerText = 'Shift Belum Buka';
+  if (shift && shift.status === 'OPEN') {
+    if (badge) {
+      badge.textContent = `${shift.shift_name} (OPEN)`;
+      badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
     }
+    if (openBtn) openBtn.classList.add('hidden');
+    if (closeBtn) closeBtn.classList.remove('hidden');
+  } else {
+    if (badge) {
+      badge.textContent = 'Shift Tutup';
+      badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800 border border-rose-300';
+    }
+    if (openBtn) openBtn.classList.remove('hidden');
+    if (closeBtn) closeBtn.classList.add('hidden');
   }
 }
 
-export async function checkActiveShift() {
-  if (state.currentUser?.role === 'SUPERADMIN') return true;
-
-  const tenantId = state.tenantId || state.currentUser?.tenant_id;
-  const userId = state.currentUser?.id;
-
-  if (!tenantId || !userId) return false;
-
+export async function checkAndRestoreShift() {
   try {
-    const res = await fetch(`/api/shifts/current?tenant_id=${tenantId}&user_id=${userId}`);
-    const result = await res.json();
-
-    if (result.success && result.active_shift) {
-      state.currentShift = result.active_shift;
-      updateHeaderShiftStatus();
+    const res = await api('/api/shifts/current', 'GET');
+    if (res && res.shift && res.shift.status === 'OPEN') {
+      state.activeShift = res.shift;
+      updateHeaderShiftStatus(res.shift);
       return true;
     } else {
-      state.currentShift = null;
-      updateHeaderShiftStatus();
-      const openModal = document.getElementById('open-shift-modal');
-      if (openModal) openModal.classList.remove('hidden');
+      state.activeShift = null;
+      updateHeaderShiftStatus(null);
+      if (state.user && state.user.role === 'CASHIER') {
+        openModalOpenShift();
+      }
       return false;
     }
   } catch (err) {
-    console.error("Gagal memeriksa shift:", err);
-    return true;
+    console.error('Gagal restore shift:', err);
+    updateHeaderShiftStatus(null);
+    return false;
   }
+}
+
+export async function initShifts() {
+  await checkAndRestoreShift();
+}
+
+export function openModalOpenShift() {
+  document.getElementById('open-shift-modal')?.classList.remove('hidden');
+}
+
+export function closeModalOpenShift() {
+  document.getElementById('open-shift-modal')?.classList.add('hidden');
+}
+
+export function openModalCloseShift() {
+  document.getElementById('close-shift-modal')?.classList.remove('hidden');
+}
+
+export function closeModalCloseShift() {
+  document.getElementById('close-shift-modal')?.classList.add('hidden');
 }
 
 export async function submitOpenShift() {
   const shiftName = document.getElementById('open-shift-name-select')?.value || 'Pagi';
-  const inputCash = document.getElementById('open-shift-cash-input');
-  const startCash = parseFloat(inputCash?.value) || 0;
-
+  const startingCash = Number(document.getElementById('open-shift-cash-input')?.value) || 0;
   const btn = document.getElementById('btn-submit-open-shift');
+
   if (btn) btn.disabled = true;
-
-  const tenantId = state.tenantId || state.currentUser?.tenant_id;
-
   try {
-    const res = await fetch('/api/shifts/open', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenant_id: tenantId,
-        user_id: state.currentUser.id,
-        cashier_name: state.currentUser.name,
-        shift_name: shiftName,
-        starting_cash: startCash
-      })
+    const res = await api('/api/shifts/open', 'POST', {
+      shift_name: shiftName,
+      starting_cash: startingCash
     });
 
-    const result = await res.json();
-    if (result.success) {
-      state.currentShift = result.shift;
-      updateHeaderShiftStatus();
-      showToast(`Shift ${shiftName} dimulai! Modal: ${formatRupiah(startCash)}`);
-      document.getElementById('open-shift-modal').classList.add('hidden');
+    if (res && res.success) {
+      state.activeShift = res.shift;
+      updateHeaderShiftStatus(res.shift);
+      closeModalOpenShift();
+      playSuccessSound();
     } else {
-      showToast(result.error || 'Gagal membuka shift', 'error');
+      playAlertSound();
+      alert(res?.error || 'Gagal membuka shift');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    console.error('Error open shift:', err);
+    playAlertSound();
+    alert('Terjadi kesalahan saat membuka shift');
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
-export function openCloseShiftModal() {
-  if (!state.currentShift) {
-    showToast('Tidak ada shift aktif yang berjalan.', 'error');
-    return;
-  }
-  const cashInput = document.getElementById('close-shift-actual-cash');
-  const notesInput = document.getElementById('close-shift-notes');
-  if (cashInput) cashInput.value = '';
-  if (notesInput) notesInput.value = '';
-  
-  const modal = document.getElementById('close-shift-modal');
-  if (modal) modal.classList.remove('hidden');
-}
-
 export async function submitCloseShift() {
-  const actualCashInput = document.getElementById('close-shift-actual-cash');
-  const actualCash = parseFloat(actualCashInput?.value);
+  const actualCash = Number(document.getElementById('close-shift-actual-cash')?.value) || 0;
   const notes = document.getElementById('close-shift-notes')?.value || '';
 
-  if (isNaN(actualCash)) {
-    showToast('Harap masukkan nominal uang fisik di laci!', 'error');
-    return;
-  }
+  if (!confirm('Apakah Anda yakin ingin menutup shift ini?')) return;
 
   const btn = document.getElementById('btn-submit-close-shift');
   if (btn) btn.disabled = true;
 
   try {
-    const res = await fetch('/api/shifts/close', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        shift_id: state.currentShift.id,
-        actual_cash: actualCash,
-        notes: notes
-      })
+    const res = await api('/api/shifts/close', 'POST', {
+      actual_cash: actualCash,
+      notes: notes
     });
 
-    const result = await res.json();
-    if (result.success) {
-      const closeMod = document.getElementById('close-shift-modal');
-      if (closeMod) closeMod.classList.add('hidden');
-      
-      state.currentShift = null;
-      updateHeaderShiftStatus();
-      renderShiftSummaryModal(result.summary);
+    if (res && res.success) {
+      state.activeShift = null;
+      updateHeaderShiftStatus(null);
+      closeModalCloseShift();
+      playSuccessSound();
+      showShiftSummary(res.summary);
     } else {
-      showToast(result.error || 'Gagal menutup shift', 'error');
+      playAlertSound();
+      alert(res?.error || 'Gagal menutup shift');
     }
   } catch (err) {
-    showToast('Gagal memproses tutup shift.', 'error');
+    console.error('Error closing shift:', err);
+    playAlertSound();
+    alert('Terjadi kesalahan saat menutup shift');
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
-function renderShiftSummaryModal(s) {
-  if (!s) return;
-  const storeEl = document.getElementById('xrep-store');
-  const shiftEl = document.getElementById('xrep-shift-info');
-  const timeEl = document.getElementById('xrep-time');
-  const totalTxEl = document.getElementById('xrep-total-tx');
-  const grandSalesEl = document.getElementById('xrep-grand-sales');
-  const cashSalesEl = document.getElementById('xrep-cash-sales');
-  const nonCashSalesEl = document.getElementById('xrep-noncash-sales');
-  const startEl = document.getElementById('xrep-starting');
-  const expEl = document.getElementById('xrep-expected');
-  const actEl = document.getElementById('xrep-actual');
-  const diffEl = document.getElementById('xrep-difference');
+function showShiftSummary(summary) {
+  if (!summary) return;
 
-  if (storeEl) storeEl.innerText = state.tenantInfo?.name || 'POSTA POS';
-  if (shiftEl) shiftEl.innerText = `Shift ${s.shift_name || 'Pagi'} - ${s.cashier_name}`;
-  if (timeEl) timeEl.innerText = new Date(s.end_time || Date.now()).toLocaleString('id-ID');
-  if (totalTxEl) totalTxEl.innerText = `${s.total_transactions || 0} Nota`;
-  if (grandSalesEl) grandSalesEl.innerText = formatRupiah(s.grand_total_sales || 0);
-  if (cashSalesEl) cashSalesEl.innerText = `${formatRupiah(s.total_cash || 0)} (${s.count_cash || 0} Tx)`;
-  if (nonCashSalesEl) nonCashSalesEl.innerText = `${formatRupiah(s.total_non_cash || 0)} (${s.count_non_cash || 0} Tx)`;
-  
-  if (startEl) startEl.innerText = formatRupiah(s.starting_cash || 0);
-  if (expEl) expEl.innerText = formatRupiah(s.expected_cash || 0);
-  if (actEl) actEl.innerText = formatRupiah(s.actual_cash || 0);
+  const startingCash = Number(summary.starting_cash || 0);
+  const expectedCash = Number(summary.expected_cash || 0);
+  const actualCash = Number(summary.actual_cash || 0);
+  const difference = Number(summary.difference || 0);
+  const cashSales = Math.max(0, expectedCash - startingCash);
 
-  if (diffEl) {
-    if (s.difference === 0) {
-      diffEl.innerHTML = `<span class="text-emerald-600 font-bold">PAS (Rp 0)</span>`;
-    } else if (s.difference > 0) {
-      diffEl.innerHTML = `<span class="text-blue-600 font-bold">+${formatRupiah(s.difference)} (LEBIH)</span>`;
-    } else {
-      diffEl.innerHTML = `<span class="text-rose-600 font-bold">${formatRupiah(s.difference)} (KURANG)</span>`;
-    }
-  }
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+  const rupiah = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 
-  const sumModal = document.getElementById('shift-summary-modal');
-  if (sumModal) sumModal.classList.remove('hidden');
+  setText('xrep-store', state.tenantInfo?.name || 'Posta POS');
+  setText('xrep-shift-info', `${summary.shift_name || '-'} - ${summary.cashier_name || state.user?.name || '-'}`);
+  setText('xrep-time', summary.end_time ? new Date(summary.end_time).toLocaleString('id-ID') : new Date().toLocaleString('id-ID'));
+  setText('xrep-total-tx', '-'); // Tidak tersedia dari endpoint tutup shift
+  setText('xrep-grand-sales', rupiah(cashSales));
+  setText('xrep-cash-sales', rupiah(cashSales));
+  setText('xrep-noncash-sales', '-'); // Tidak tersedia dari endpoint tutup shift
+  setText('xrep-starting', rupiah(startingCash));
+  setText('xrep-expected', rupiah(expectedCash));
+  setText('xrep-actual', rupiah(actualCash));
+  setText('xrep-difference', rupiah(difference));
+
+  document.getElementById('shift-summary-modal')?.classList.remove('hidden');
 }
 
 export function finishShiftAndLogout() {
-  localStorage.removeItem('posta_token');
-  localStorage.removeItem('posta_user');
-  location.reload();
+  document.getElementById('shift-summary-modal')?.classList.add('hidden');
+  window.logout?.();
 }
+
+window.postaShifts = {
+  checkAndRestoreShift,
+  updateHeaderShiftStatus,
+  openModalOpenShift,
+  closeModalOpenShift,
+  openModalCloseShift,
+  closeModalCloseShift,
+  submitOpenShift,
+  submitCloseShift,
+  finishShiftAndLogout
+};
+
+window.openCloseShiftModal = openModalCloseShift;
+window.submitOpenShift = submitOpenShift;
+window.submitCloseShift = submitCloseShift;
+window.finishShiftAndLogout = finishShiftAndLogout;
