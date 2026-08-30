@@ -5,6 +5,26 @@ import { initNavigation, navigateTo } from './navigation.js';
 import { initPOSView } from './views/pos.js';
 
 // =========================================================================
+// GLOBAL SIDEBAR CONTROLLER
+// =========================================================================
+window.toggleSidebar = function(forceState) {
+  const sidebar = document.querySelector('.sidebar, .app-sidebar, aside') || document.getElementById('sidebar') || document.getElementById('sidebar-root');
+  if (!sidebar) return;
+
+  if (typeof forceState === 'boolean') {
+    if (forceState) {
+      sidebar.classList.add('active', 'open');
+      sidebar.style.display = 'block';
+    } else {
+      sidebar.classList.remove('active', 'open');
+    }
+  } else {
+    sidebar.classList.toggle('active');
+    sidebar.classList.toggle('open');
+  }
+};
+
+// =========================================================================
 // GLOBAL MODAL CONTROLLERS
 // =========================================================================
 window.openModal = function(modalId) {
@@ -29,46 +49,24 @@ window.closeModal = function(modalId) {
 async function initApp() {
   console.log('Posta POS App Initializing...');
 
-  // 1. Muat SEMUA komponen HTML sampai tuntas
+  // 1. Muat SEMUA komponen partial HTML
   await loadComponents();
 
-  // 2. Ambil data tenant saat ini
+  // 2. Ambil data tenant
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
       state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.warn('Gagal memuat data tenant:', err);
+    console.warn('Gagal memuat info tenant:', err);
   }
 
-  // 3. Pasang navigasi & render view default
+  // 3. Inisialisasi navigasi & tampilkan view POS
   initNavigation();
 
-  // 4. Pastikan katalog POS langsung dimuat
+  // 4. Inisialisasi data & event POS
   await initPOSView();
-
-  // 5. Daftarkan event tombol global
-  setupGlobalEvents();
-}
-
-function setupGlobalEvents() {
-  // Toggle Sidebar Menu
-  const menuButtons = document.querySelectorAll('.header-menu-btn, .btn-menu-toggle, [data-action="toggle-sidebar"]');
-  menuButtons.forEach(btn => {
-    btn.onclick = () => {
-      const sidebar = document.querySelector('.app-sidebar') || document.getElementById('sidebar') || document.getElementById('sidebar-root');
-      if (sidebar) sidebar.classList.toggle('active');
-    };
-  });
-
-  // Tombol Shift
-  const shiftBtn = document.getElementById('btn-shift-status') || document.querySelector('.btn-shift');
-  if (shiftBtn) {
-    shiftBtn.onclick = () => {
-      window.openModal('modal-shift');
-    };
-  }
 }
 
 // Jalankan aplikasi saat dokumen siap
