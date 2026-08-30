@@ -1,30 +1,49 @@
 import { state } from './state.js';
 import { api } from './api.js';
-import { initAdminView } from './views/admin.js';
-import { initPOSView } from './views/pos.js';
+import { loadComponents } from './loader.js';
+import { checkAuth } from './views/auth.js';
+import { initNavigation, navigateTo } from './navigation.js';
 
 // =========================================================================
-// MODAL CONTROLLER
+// MODAL CONTROLLER GLOBAL (ANTI-FREEZE)
 // =========================================================================
 window.openModal = function(modalId) {
-  const modal = document.getElementById(modalId);
+  let modal = document.getElementById(modalId);
+  if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
+  if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
+
   if (modal) {
     modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    modal.style.pointerEvents = 'auto';
+
+    const container = modal.closest('#modals-container') || document.getElementById('modals-container');
+    if (container) container.style.pointerEvents = 'auto';
+  } else {
+    console.warn('Modal tidak ditemukan:', modalId);
   }
 };
 
 window.closeModal = function(modalId) {
-  const modal = document.getElementById(modalId);
+  let modal = document.getElementById(modalId);
+  if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
+  if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
+
   if (modal) {
     modal.classList.add('hidden');
+    modal.style.display = 'none';
+    modal.style.pointerEvents = 'none';
+
+    const activeModals = document.querySelectorAll('.modal-backdrop:not(.hidden)');
+    if (activeModals.length === 0) {
+      const container = document.getElementById('modals-container');
+      if (container) container.style.pointerEvents = 'none';
+    }
   }
 };
 
-// =========================================================================
-// SIDEBAR DRAWER CONTROLLER
-// =========================================================================
 window.toggleSidebar = function(forceState) {
-  const sidebar = document.getElementById('sidebar-drawer');
+  const sidebar = document.querySelector('.sidebar, .app-sidebar, aside') || document.getElementById('sidebar-container');
   if (!sidebar) return;
 
   if (typeof forceState === 'boolean') {
@@ -35,44 +54,45 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// NAVIGASI SPA
-// =========================================================================
-window.navigateTo = function(viewName) {
-  document.querySelectorAll('.app-view').forEach(v => v.classList.add('hidden'));
-  const target = document.getElementById(`view-${viewName}`);
-  if (target) {
-    target.classList.remove('hidden');
-  }
-
-  window.toggleSidebar(false);
-
-  if (viewName === 'admin') initAdminView();
-  else if (viewName === 'pos') initPOSView();
-  else if (viewName === 'products' && window.loadAdminProducts) window.loadAdminProducts();
-};
-
-// =========================================================================
-// INIT UTAMA
+// INISIALISASI APLIKASI
 // =========================================================================
 async function initApp() {
   console.log('Posta POS App Initializing...');
 
-  // Event listener tombol navigasi
+  // 1. Muat seluruh partial HTML
+  await loadComponents();
+
+  // 2. Ambil data tenant
+  try {
+    const tenantInfo = await api('/api/tenant/info', 'GET');
+    if (tenantInfo && tenantInfo.data) {
+      state.tenant = tenantInfo.data;
+    }
+  } catch (err) {
+    console.warn('Gagal memuat tenant info:', err);
+  }
+
+  // 3. Cek login
+  checkAuth();
+
+  // 4. Inisialisasi navigasi SPA
+  initNavigation();
+
+  // 5. Daftarkan event global
+  setupGlobalEvents();
+}
+
+function setupGlobalEvents() {
   document.addEventListener('click', (e) => {
-    const navBtn = e.target.closest('[data-view]');
-    if (navBtn) {
+    if (e.target.closest('.header-menu-btn, .btn-menu-toggle, [onclick*="toggleSidebar"]')) {
       e.preventDefault();
-      const target = navBtn.getAttribute('data-view');
-      if (target) window.navigateTo(target);
+      window.toggleSidebar();
     }
   });
 
-  // Tentukan view default
-  const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
-  if (isSuperDomain) {
-    window.navigateTo('admin');
-  } else {
-    window.navigateTo('pos');
+  const shiftBtn = document.getElementById('btn-shift-status') || document.querySelector('.btn-shift');
+  if (shiftBtn) {
+    shiftBtn.onclick = () => window.openModal('modal-shift');
   }
 }
 
