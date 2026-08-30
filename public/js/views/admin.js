@@ -2,9 +2,72 @@ import { adjustStock, getStockHistory, api } from '../api.js';
 import { state } from '../state.js';
 
 // =========================================================================
-// STOCK ADJUSTMENT (OPNAME)
+// INISIALISASI VIEW ADMIN (DIPANGGIL OLEH NAVIGATION.JS)
 // =========================================================================
+export async function initAdminView() {
+  console.log('Inisialisasi Admin View...');
+  
+  // 1. Cek hak akses jika perlu
+  if (state.user && state.user.role === 'KASIR') {
+    alert('Akses dibatasi. Hanya untuk Admin/Owner.');
+    if (window.navigateTo) window.navigateTo('pos');
+    return;
+  }
 
+  // 2. Muat data tenant jika superadmin
+  if (state.user && state.user.role === 'SUPERADMIN') {
+    await loadTenantsList();
+  }
+
+  // 3. Muat produk
+  await loadAdminProducts();
+}
+
+// =========================================================================
+// PRODUK & MANAJEMEN STOK
+// =========================================================================
+export async function loadAdminProducts() {
+  try {
+    const res = await api('/api/products', 'GET');
+    const products = Array.isArray(res) ? res : (res.data || []);
+    state.products = products;
+    renderAdminProductsTable(products);
+  } catch (err) {
+    console.error('Gagal memuat produk admin:', err);
+  }
+}
+
+function renderAdminProductsTable(products) {
+  const tbody = document.getElementById('product-table-body') || document.getElementById('admin-products-table-body');
+  if (!tbody) return;
+
+  if (!products || products.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Belum ada data produk.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = products.map(p => `
+    <tr>
+      <td>${p.sku || '-'}</td>
+      <td><strong>${p.name}</strong></td>
+      <td>Rp ${(Number(p.cost_price || 0)).toLocaleString('id-ID')}</td>
+      <td>Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</td>
+      <td><span class="badge ${p.stock <= 5 ? 'badge-danger' : 'badge-success'}">${p.stock || 0}</span></td>
+      <td class="text-right">
+        <button class="btn btn-sm btn-outline" onclick="window.openStockAdjustModal('${p.id}')" title="Opname Stok">
+          ⚖️ Opname
+        </button>
+        <button class="btn btn-sm btn-outline" onclick="window.openStockHistoryModal('${p.id}')" title="Log Stok">
+          📋 Riwayat
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// =========================================================================
+// MODAL STOK OPNAME / ADJUSTMENT
+// =========================================================================
 window.openStockAdjustModal = function(productId) {
   const productList = state.products || [];
   const product = productList.find(p => String(p.id) === String(productId));
@@ -59,18 +122,7 @@ window.handleStockAdjustSubmit = async function(event) {
       if (typeof window.closeModal === 'function') {
         window.closeModal('modal-stock-adjust');
       }
-
-      // Refresh data produk terbaru
-      const updatedProducts = await api('/api/products', 'GET');
-      if (Array.isArray(updatedProducts)) {
-        state.products = updatedProducts;
-      } else if (updatedProducts.data) {
-        state.products = updatedProducts.data;
-      }
-
-      // Render ulang tampilan jika fungsinya tersedia
-      if (typeof window.renderProductTable === 'function') window.renderProductTable();
-      if (typeof window.renderAdminProducts === 'function') window.renderAdminProducts();
+      await loadAdminProducts();
     } else {
       alert(res.error || 'Gagal mengubah stok');
     }
@@ -81,9 +133,8 @@ window.handleStockAdjustSubmit = async function(event) {
 };
 
 // =========================================================================
-// STOCK LOG HISTORY (KARTU STOK)
+// MODAL RIWAYAT MUTASI KARTU STOK
 // =========================================================================
-
 window.openStockHistoryModal = async function(productId) {
   const productList = state.products || [];
   const product = productList.find(p => String(p.id) === String(productId));
@@ -127,3 +178,51 @@ window.openStockHistoryModal = async function(productId) {
     if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Gagal memuat log stok.</td></tr>';
   }
 };
+
+// =========================================================================
+// MANAJEMEN TENANT & USER (SUPERADMIN)
+// =========================================================================
+async function loadTenantsList() {
+  try {
+    const res = await api('/api/admin/tenants', 'GET');
+    const tenants = res.data || [];
+    const tbody = document.getElementById('tenants-table-body');
+    if (!tbody) return;
+
+    if (tenants.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada toko terdaftar.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = tenants.map(t => `
+      <tr>
+        <td><strong>${t.name}</strong></td>
+        <td>${t.subdomain}.gpro.my.id</td>
+        <td>${t.total_products || 0} Produk</td>
+        <td>${t.total_transactions || 0} Trx</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="window.impersonateTenant('${t.subdomain}')">Masuk Toko</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('Gagal mengambil daftar tenant:', err);
+  }
+}
+
+window.impersonateTenant = async function(subdomain) {
+  try {
+    const res = await api(`/api/admin/impersonate?subdomain=${subdomain}`, 'GET');
+    if (res.success && res.target_url) {
+      window.location.href = res.target_url;
+    } else {
+      alert(res.error || 'Gagal impersonate tenant');
+    }
+  } catch (err) {
+    alert('Gagal membuka toko tujuan.');
+  }
+};
+
+// Aliases untuk kompatibilitas global
+window.renderProductTable = loadAdminProducts;
+window.renderAdminProducts = loadAdminProducts;
