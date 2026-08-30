@@ -1,4 +1,5 @@
 import { api } from '../api.js';
+import { state } from '../state.js';
 
 let chartInstance = null;
 
@@ -38,10 +39,10 @@ export function switchReportTab(tab) {
 
 export async function loadDailyReport() {
     const date = document.getElementById('daily-report-date')?.value;
-    if (!date) return;
+    if (!date || !state.tenantId) return;
 
     try {
-        const res = await api(`/api/reports/daily?date=${date}`, 'GET');
+        const res = await api(`/api/reports/daily?date=${date}&tenant_id=${encodeURIComponent(state.tenantId)}`, 'GET');
         if (!res || !res.success) return;
 
         const sum = res.summary || {};
@@ -69,13 +70,13 @@ export async function loadDailyReport() {
 
 export async function loadMonthlyReport() {
     const period = document.getElementById('monthly-report-period')?.value;
-    if (!period) return;
+    if (!period || !state.tenantId) return;
 
     try {
-        const res = await api(`/api/reports/monthly?period=${period}`, 'GET');
+        const res = await api(`/api/reports/monthly?month=${period}&tenant_id=${encodeURIComponent(state.tenantId)}`, 'GET');
         if (!res || !res.success) return;
 
-        const list = res.data || [];
+        const list = res.daily_trends || [];
         renderMonthlyTable(list);
         renderMonthlyChart(list);
     } catch (err) {
@@ -92,15 +93,19 @@ function renderMonthlyTable(data) {
         return;
     }
 
-    tbody.innerHTML = data.map(row => `
+    tbody.innerHTML = data.map(row => {
+        const sales = Number(row.daily_sales || 0);
+        const cogs = Number(row.daily_cogs || 0);
+        return `
         <tr class="hover:bg-gray-50">
-            <td class="px-4 py-3 font-medium text-gray-800">${row.date}</td>
-            <td class="px-4 py-3">${row.total_transactions || 0}</td>
-            <td class="px-4 py-3 font-semibold text-gray-900">Rp ${Number(row.total_sales || 0).toLocaleString('id-ID')}</td>
-            <td class="px-4 py-3 text-gray-500">Rp ${Number(row.total_cogs || 0).toLocaleString('id-ID')}</td>
-            <td class="px-4 py-3 font-semibold text-emerald-600">Rp ${Number((row.total_sales || 0) - (row.total_cogs || 0)).toLocaleString('id-ID')}</td>
+            <td class="px-4 py-3 font-medium text-gray-800">${row.sale_date}</td>
+            <td class="px-4 py-3">${row.daily_tx || 0}</td>
+            <td class="px-4 py-3 font-semibold text-gray-900">Rp ${sales.toLocaleString('id-ID')}</td>
+            <td class="px-4 py-3 text-gray-500">Rp ${cogs.toLocaleString('id-ID')}</td>
+            <td class="px-4 py-3 font-semibold text-emerald-600">Rp ${(sales - cogs).toLocaleString('id-ID')}</td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function renderMonthlyChart(data) {
@@ -111,9 +116,9 @@ function renderMonthlyChart(data) {
         chartInstance.destroy();
     }
 
-    const labels = data.map(item => item.date);
-    const sales = data.map(item => item.total_sales || 0);
-    const profits = data.map(item => (item.total_sales || 0) - (item.total_cogs || 0));
+    const labels = data.map(item => item.sale_date);
+    const sales = data.map(item => Number(item.daily_sales || 0));
+    const profits = data.map(item => Number(item.daily_sales || 0) - Number(item.daily_cogs || 0));
 
     chartInstance = new Chart(ctx, {
         type: 'line',

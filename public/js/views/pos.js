@@ -1,83 +1,16 @@
 import { state, formatRupiah, showToast } from '../state.js';
-import { API } from '../api.js';
-import { checkAuthSession } from './auth.js';
+import { api } from '../api.js';
 
 // =========================================================================
-// 1. INISIALISASI SESI TOKO & LOGIN
-// =========================================================================
-export async function initTenantSession() {
-  try {
-    const res = await fetch('/api/tenant/info');
-    const result = await res.json();
-
-    if (!result.success) {
-      showToast(result.error || 'Toko tidak terdaftar', 'error');
-      document.body.innerHTML = `
-        <div class="h-screen flex flex-col items-center justify-center bg-slate-950 p-6 text-center font-sans text-slate-100">
-          <div class="w-16 h-16 bg-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-4 font-bold border border-rose-500/30">!</div>
-          <h1 class="text-xl font-black mb-1">Toko Tidak Ditemukan</h1>
-          <p class="text-xs text-slate-400 max-w-sm mb-4">${result.error || 'Subdomain tidak aktif'}</p>
-          <a href="https://posta.gpro.my.id" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg">Kembali ke Portal Hub</a>
-        </div>
-      `;
-      return false;
-    }
-
-    state.tenantId = result.is_admin ? 'admin' : result.data.id;
-    state.tenantInfo = result.is_admin ? { id: 'admin', is_admin: true } : { ...result.data, is_admin: false };
-
-    // Cek Autentikasi / Sesi Login User
-    const isAuthed = await checkAuthSession(state.tenantInfo);
-    if (!isAuthed) return false;
-
-    // Jika yang diakses adalah portal Superadmin (posta.gpro.my.id)
-    if (result.is_admin) {
-      const viewPos = document.getElementById('view-pos');
-      const bottomNav = document.querySelector('nav');
-      const header = document.querySelector('header');
-      const mobileBar = document.getElementById('mobile-checkout-bar');
-      const adminView = document.getElementById('view-admin-portal');
-
-      if (viewPos) viewPos.classList.add('hidden');
-      if (bottomNav) bottomNav.classList.add('hidden');
-      if (header) header.classList.add('hidden');
-      if (mobileBar) mobileBar.classList.add('hidden');
-
-      if (adminView) {
-        adminView.classList.remove('hidden');
-        if (typeof window.loadAdminTenants === 'function') {
-          window.loadAdminTenants();
-        }
-      }
-      return false;
-    }
-
-    // Update label nama toko di header dan sidebar
-    const storeSubtitles = document.querySelectorAll('#page-title + span, #sidebar-drawer .font-bold.text-slate-800');
-    storeSubtitles.forEach(el => {
-      el.innerText = result.data.name;
-    });
-
-    return true;
-  } catch (err) {
-    showToast('Gagal memuat sesi toko.', 'error');
-    return false;
-  }
-}
-
-// =========================================================================
-// 2. MUAT PRODUK TOKO
+// 1. MUAT PRODUK TOKO
 // =========================================================================
 export async function loadProducts() {
-  if (!state.tenantId) {
-    const ok = await initTenantSession();
-    if (!ok) return;
-  }
-
   const grid = document.getElementById('product-grid');
   try {
-    const result = await API.getProducts();
-    if (result.success && result.data && result.data.length > 0) {
+    const qs = state.tenantId ? `?tenant_id=${encodeURIComponent(state.tenantId)}` : '';
+    const result = await api(`/api/products${qs}`, 'GET');
+
+    if (result && result.success && result.data && result.data.length > 0) {
       state.products = result.data;
       renderCategories();
       renderProductGrid();
@@ -91,6 +24,7 @@ export async function loadProducts() {
       renderProductTable();
     }
   } catch (err) {
+    console.error('Gagal memuat produk:', err);
     if (grid) {
       grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat katalog barang.</div>`;
     }
@@ -107,7 +41,7 @@ export function loadMasterProducts() {
 }
 
 // =========================================================================
-// 3. KATEGORI PRODUK
+// 2. KATEGORI PRODUK
 // =========================================================================
 export function renderCategories() {
   const container = document.getElementById('category-container');
@@ -129,7 +63,7 @@ export function filterCategory(cat) {
 }
 
 // =========================================================================
-// 4. GRID KATALOG KASIR
+// 3. GRID KATALOG KASIR
 // =========================================================================
 export function renderProductGrid() {
   const grid = document.getElementById('product-grid');
@@ -162,15 +96,15 @@ export function renderProductGrid() {
 }
 
 // =========================================================================
-// 5. TABEL MASTER PRODUK
+// 4. TABEL MASTER PRODUK
 // =========================================================================
 export function renderProductTable() {
   const tbody = document.getElementById('master-products-tbody');
   if (!tbody) return;
 
   const keyword = (document.getElementById('prod-table-search')?.value || '').toLowerCase();
-  const filtered = (state.products || []).filter(p => 
-    p.name.toLowerCase().includes(keyword) || 
+  const filtered = (state.products || []).filter(p =>
+    p.name.toLowerCase().includes(keyword) ||
     (p.barcode && String(p.barcode).toLowerCase().includes(keyword)) ||
     (p.category_name && p.category_name.toLowerCase().includes(keyword))
   );
@@ -197,7 +131,7 @@ export function renderProductTable() {
 }
 
 // =========================================================================
-// 6. SETUP DATALIST PO
+// 5. SETUP DATALIST PO
 // =========================================================================
 export function setupPODatalist() {
   const datalist = document.getElementById('master-products-datalist');
@@ -208,7 +142,7 @@ export function setupPODatalist() {
 }
 
 // =========================================================================
-// 7. KERANJANG BELANJA KASIR
+// 6. KERANJANG BELANJA KASIR
 // =========================================================================
 export function addToCart(productId) {
   const product = state.products.find(p => p.id === productId);
@@ -225,14 +159,13 @@ export function addToCart(productId) {
       showToast(`Stok ${product.name} hanya tersisa ${product.stock}`, "error");
     }
   } else {
-    // Simpan data produk lengkap (termasuk cost_price) ke keranjang
-    state.cart.push({ 
+    state.cart.push({
       id: product.id,
       name: product.name,
       price: product.price,
       cost_price: product.cost_price || 0,
       stock: product.stock,
-      qty: 1 
+      qty: 1
     });
   }
   updateCartUI();
@@ -262,14 +195,14 @@ export function updateCartUI() {
   `;
 
   if (listDesktop) {
-    listDesktop.innerHTML = state.cart.length === 0 
-      ? `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>` 
+    listDesktop.innerHTML = state.cart.length === 0
+      ? `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>`
       : state.cart.map(renderItemHtml).join('');
   }
 
   if (listMobile) {
-    listMobile.innerHTML = state.cart.length === 0 
-      ? `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>` 
+    listMobile.innerHTML = state.cart.length === 0
+      ? `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>`
       : state.cart.map(renderItemHtml).join('');
   }
 
@@ -341,3 +274,21 @@ export function clearCart() {
   state.cart = [];
   updateCartUI();
 }
+
+// Live-filter saat mengetik di kotak pencarian kasir
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('search-input');
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', renderProductGrid);
+  }
+});
+
+window.filterCategory = filterCategory;
+window.addToCart = addToCart;
+window.updateQty = updateQty;
+window.setDirectCartQty = setDirectCartQty;
+window.removeCartItem = removeCartItem;
+window.clearCart = clearCart;
+window.renderProductTable = renderProductTable;
+window.loadMasterProducts = loadMasterProducts;

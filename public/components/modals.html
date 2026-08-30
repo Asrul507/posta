@@ -118,10 +118,12 @@
           <input 
             id="po-search-input" 
             type="text" 
+            list="master-products-datalist"
             placeholder="Ketik nama / barcode produk..." 
             onkeydown="if(event.key === 'Enter') window.handlePOSearch()"
             class="w-full text-xs p-2.5 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
           />
+          <datalist id="master-products-datalist"></datalist>
         </div>
 
         <button onclick="window.openContinuousCamera('PO')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">

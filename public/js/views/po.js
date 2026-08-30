@@ -1,5 +1,5 @@
 import { state, formatRupiah, showToast } from '../state.js';
-import { API } from '../api.js';
+import { api } from '../api.js';
 import { loadProducts } from './pos.js';
 
 let poCart = [];
@@ -15,7 +15,7 @@ export function openPOModal() {
     const autoNumber = 'PO-' + Date.now().toString().slice(-6);
     const inputNo = document.getElementById('po-number-input');
     if (inputNo) inputNo.value = autoNumber;
-    
+
     poCart = [];
     renderPOTable();
   }
@@ -40,8 +40,7 @@ export function handlePOSearch() {
     return;
   }
 
-  // Cari produk di state
-  const product = state.products.find(p => 
+  const product = state.products.find(p =>
     (p.barcode && p.barcode.toLowerCase() === query) ||
     p.name.toLowerCase().includes(query) ||
     p.id === query
@@ -56,7 +55,7 @@ export function handlePOSearch() {
   }
 }
 
-// Fungsi yang diekspor untuk scanner.js
+// Dipanggil dari scanner.js saat barcode terdeteksi kamera
 export function handleAddPOByBarcode(barcode) {
   if (!barcode) return;
   const product = state.products.find(p => p.barcode === barcode || String(p.id) === barcode);
@@ -64,8 +63,7 @@ export function handleAddPOByBarcode(barcode) {
   if (product) {
     addPOItem(product);
     showToast(`PO: +1 ${product.name}`);
-    
-    // Feedback ke modal scanner
+
     const lastItemEl = document.getElementById('scanner-last-item');
     if (lastItemEl) {
       lastItemEl.innerHTML = `<span class="text-emerald-400 font-bold">${product.name}</span> (Masuk PO)`;
@@ -76,16 +74,18 @@ export function handleAddPOByBarcode(barcode) {
 }
 
 export function addPOItem(product) {
-  const existing = poCart.find(item => item.product_id === product.id);
+  const existing = poCart.find(item => item.id === product.id);
   if (existing) {
     existing.qty += 1;
   } else {
     poCart.push({
-      product_id: product.id,
+      id: product.id,
       barcode: product.barcode || '-',
       name: product.name,
       cost_price: product.cost_price || 0,
-      qty: 1
+      price: product.price || 0,
+      qty: 1,
+      is_new: false
     });
   }
   renderPOTable();
@@ -198,22 +198,17 @@ export async function submitPurchaseOrder() {
       items: poCart
     };
 
-    const res = await fetch('/api/po/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const result = await res.json();
+    const result = await api('/api/po/submit', 'POST', payload);
 
-    if (result.success) {
+    if (result && result.success) {
       showToast('Barang masuk berhasil disimpan & stok diperbarui!');
       closePOModal();
-      // Segarkan stok di kasir
       loadProducts();
     } else {
-      showToast('Gagal: ' + (result.error || 'Terjadi kesalahan'), 'error');
+      showToast('Gagal: ' + (result?.error || 'Terjadi kesalahan'), 'error');
     }
   } catch (err) {
+    console.error('Gagal submit PO:', err);
     showToast('Gagal menyimpan PO (masalah jaringan).', 'error');
   } finally {
     if (btn) {
@@ -222,3 +217,11 @@ export async function submitPurchaseOrder() {
     }
   }
 }
+
+window.openPOModal = openPOModal;
+window.closePOModal = closePOModal;
+window.handlePOSearch = handlePOSearch;
+window.updatePOCostPrice = updatePOCostPrice;
+window.updatePOQty = updatePOQty;
+window.removePOItem = removePOItem;
+window.submitPurchaseOrder = submitPurchaseOrder;

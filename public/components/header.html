@@ -21,7 +21,11 @@
       <i class="fa-solid fa-barcode text-emerald-600"></i>
       <span>Scan Kamera</span>
     </button>
-    <button onclick="window.openCloseShiftModal()" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+    <button id="btn-open-shift-header" onclick="window.postaShifts?.openModalOpenShift()" class="hidden px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+      <i class="fa-solid fa-cash-register"></i>
+      <span class="hidden sm:inline">Buka Shift</span>
+    </button>
+    <button id="btn-close-shift-header" onclick="window.openCloseShiftModal()" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
       <i class="fa-solid fa-clock-rotate-left"></i>
       <span class="hidden sm:inline">Tutup Shift</span>
     </button>

@@ -3,86 +3,121 @@ import { state } from '../state.js';
 import { navigateTo } from '../navigation.js';
 import { checkAndRestoreShift, updateHeaderShiftStatus } from './shifts.js';
 
+// Form login di components/login.html tidak memiliki id dan disubmit lewat
+// atribut onsubmit="window.submitLogin()", jadi tidak perlu bind addEventListener di sini.
 export function initAuth() {
-  const loginForm = document.getElementById('login-form');
-  if (loginForm && !loginForm.dataset.bound) {
-    loginForm.dataset.bound = 'true';
-    loginForm.addEventListener('submit', handleLogin);
-  }
+  // no-op: disediakan agar app.js tetap bisa memanggil initAuth() tanpa error.
+}
 
-  const logoutBtn = document.getElementById('btn-logout');
-  if (logoutBtn && !logoutBtn.dataset.bound) {
-    logoutBtn.dataset.bound = 'true';
-    logoutBtn.addEventListener('click', handleLogout);
+function applyRoleBasedUI(user) {
+  const headerUser = document.getElementById('header-user-info');
+  if (headerUser) headerUser.textContent = `${user.name} (${user.role})`;
+
+  document.querySelectorAll('.current-user-name').forEach(el => {
+    el.textContent = user.name;
+  });
+
+  const adminNavs = document.querySelectorAll('.role-admin-only');
+  if (user.role === 'CASHIER') {
+    adminNavs.forEach(el => el.classList.add('hidden'));
+  } else {
+    adminNavs.forEach(el => el.classList.remove('hidden'));
   }
 }
 
-async function handleLogin(e) {
-  e.preventDefault();
-  const usernameInput = document.getElementById('input-username');
-  const passwordInput = document.getElementById('input-password');
-  const errorMsg = document.getElementById('login-error-msg');
+export async function submitLogin() {
+  const usernameInput = document.getElementById('login-username');
+  const passwordInput = document.getElementById('login-password');
+  const btn = document.getElementById('btn-submit-login');
 
-  if (errorMsg) errorMsg.classList.add('hidden');
+  const username = usernameInput?.value?.trim() || '';
+  const password = passwordInput?.value || '';
+
+  if (!username || !password) {
+    alert('Username dan password wajib diisi');
+    return;
+  }
+
+  const originalBtnHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
+  }
 
   try {
-    const res = await api('/api/auth/login', 'POST', {
-      username: usernameInput.value,
-      password: passwordInput.value
-    });
+    const res = await api('/api/auth/login', 'POST', { username, password });
 
     if (res && res.success) {
       state.token = res.token;
       state.user = res.user;
+      state.tenantId = res.user.tenant_id || null;
 
       localStorage.setItem('posta_token', res.token);
       localStorage.setItem('posta_user', JSON.stringify(res.user));
 
-      // Tampilkan UI Aplikasi Utama
-      document.getElementById('auth-container')?.classList.add('hidden');
+      document.getElementById('login-overlay')?.classList.add('hidden');
       document.getElementById('main-layout')?.classList.remove('hidden');
 
-      // Update info header user
-      const headerUser = document.getElementById('header-user-name');
-      if (headerUser) headerUser.textContent = `${res.user.name} (${res.user.role})`;
+      applyRoleBasedUI(res.user);
 
-      // Penyesuaian Routing Berdasarkan Role
       if (res.user.role === 'CASHIER') {
-        navigateTo('pos');
+        navigateTo('view-pos');
         await checkAndRestoreShift();
       } else {
-        // ADMIN, OWNER, SUPERADMIN langsung ke Dashboard Admin
-        navigateTo('admin');
+        navigateTo('view-admin');
         updateHeaderShiftStatus(null);
       }
     } else {
-      if (errorMsg) {
-        errorMsg.textContent = res?.error || 'Login gagal, periksa username & password.';
-        errorMsg.classList.remove('hidden');
-      }
+      alert(res?.error || 'Login gagal, periksa username & password.');
     }
   } catch (err) {
     console.error('Login error:', err);
-    if (errorMsg) {
-      errorMsg.textContent = 'Terjadi kesalahan jaringan atau server.';
-      errorMsg.classList.remove('hidden');
+    alert('Terjadi kesalahan jaringan atau server.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalBtnHtml || '<span>Masuk Sekarang</span> <i class="fa-solid fa-arrow-right"></i>';
     }
+  }
+}
+
+export function toggleLoginPasswordVisibility() {
+  const passwordInput = document.getElementById('login-password');
+  const icon = document.getElementById('login-eye-icon');
+  if (!passwordInput) return;
+
+  const isHidden = passwordInput.type === 'password';
+  passwordInput.type = isHidden ? 'text' : 'password';
+
+  if (icon) {
+    icon.classList.toggle('fa-eye', !isHidden);
+    icon.classList.toggle('fa-eye-slash', isHidden);
   }
 }
 
 export function handleLogout() {
   state.token = null;
   state.user = null;
+  state.tenantId = null;
+  state.tenantInfo = null;
   state.activeShift = null;
+  state.cart = [];
 
   localStorage.removeItem('posta_token');
   localStorage.removeItem('posta_user');
 
   document.getElementById('main-layout')?.classList.add('hidden');
-  document.getElementById('auth-container')?.classList.remove('hidden');
+  document.getElementById('login-overlay')?.classList.remove('hidden');
 }
 
 window.postaAuth = {
   initAuth,
-  handleLogout
+  submitLogin,
+  handleLogout,
+  logout: handleLogout,
+  toggleLoginPasswordVisibility
 };
+
+window.submitLogin = submitLogin;
+window.toggleLoginPasswordVisibility = toggleLoginPasswordVisibility;
+window.logout = handleLogout;

@@ -1,4 +1,5 @@
 import { state, formatRupiah, showToast } from '../state.js';
+import { api } from '../api.js';
 import { clearCart, loadProducts } from './pos.js';
 
 let lastCompletedTransaction = null;
@@ -77,7 +78,7 @@ export async function submitTransaction() {
     btnPay.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
   }
 
-  const cashierName = state.currentUser?.name || 'Kasir';
+  const cashierName = state.user?.name || 'Kasir';
   const cartSnapshot = [...state.cart];
 
   try {
@@ -89,19 +90,12 @@ export async function submitTransaction() {
       cashier_name: cashierName
     };
 
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const result = await api('/api/checkout', 'POST', payload);
 
-    const result = await res.json();
-
-    if (result.success) {
+    if (result && result.success) {
       showToast('Transaksi Berhasil Disimpan!');
       closeCheckoutModal();
 
-      // Simpan data untuk render struk
       lastCompletedTransaction = {
         invoice_number: result.invoice_number || ('INV-' + Date.now().toString().slice(-6)),
         date: new Date().toLocaleString('id-ID'),
@@ -113,16 +107,15 @@ export async function submitTransaction() {
         tenant_info: state.tenantInfo || {}
       };
 
-      // Bersihkan keranjang & perbarui stok
       clearCart();
       loadProducts();
 
-      // Tampilkan Modal Struk Otomatis
       renderAndShowReceipt(lastCompletedTransaction);
     } else {
-      showToast('Gagal: ' + (result.error || 'Terjadi kesalahan'), 'error');
+      showToast('Gagal: ' + (result?.error || 'Terjadi kesalahan'), 'error');
     }
   } catch (err) {
+    console.error('Gagal submit transaksi:', err);
     showToast('Terjadi kesalahan jaringan.', 'error');
   } finally {
     if (btnPay) {
@@ -138,7 +131,7 @@ export async function submitTransaction() {
 export function renderAndShowReceipt(data) {
   if (!data) return;
 
-  const tInfo = data.tenant_info;
+  const tInfo = data.tenant_info || {};
   const elStoreName = document.getElementById('rec-store-name');
   const elStoreAddress = document.getElementById('rec-store-address');
   const elStorePhone = document.getElementById('rec-store-phone');
@@ -183,3 +176,11 @@ export function closeReceiptModal() {
 export function printReceipt() {
   window.print();
 }
+
+window.openCheckoutModal = openCheckoutModal;
+window.closeCheckoutModal = closeCheckoutModal;
+window.setCashAmount = setCashAmount;
+window.calculateChange = calculateChange;
+window.submitTransaction = submitTransaction;
+window.closeReceiptModal = closeReceiptModal;
+window.printReceipt = printReceipt;

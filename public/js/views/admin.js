@@ -63,6 +63,49 @@ export async function impersonateTenant(subdomain) {
     }
 }
 
+export function openAddTenantModal() {
+    document.getElementById('create-tenant-modal')?.classList.remove('hidden');
+}
+
+export function closeCreateTenantModal() {
+    document.getElementById('create-tenant-modal')?.classList.add('hidden');
+    const sub = document.getElementById('new-tenant-subdomain');
+    const name = document.getElementById('new-tenant-name');
+    const addr = document.getElementById('new-tenant-address');
+    if (sub) sub.value = '';
+    if (name) name.value = '';
+    if (addr) addr.value = '';
+}
+
+export async function submitCreateTenant() {
+    const subdomain = document.getElementById('new-tenant-subdomain')?.value.trim();
+    const name = document.getElementById('new-tenant-name')?.value.trim();
+    const address = document.getElementById('new-tenant-address')?.value.trim();
+    const btn = document.getElementById('btn-save-tenant');
+
+    if (!subdomain || !name) {
+        alert('Subdomain dan Nama Toko wajib diisi');
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await api('/api/admin/tenants', 'POST', { subdomain, name, address });
+        if (res && res.success) {
+            alert(res.message || 'Toko berhasil dibuat!');
+            closeCreateTenantModal();
+            loadSuperadminTenants();
+        } else {
+            alert(res?.error || 'Gagal membuat toko');
+        }
+    } catch (err) {
+        console.error('Gagal membuat tenant:', err);
+        alert('Terjadi kesalahan jaringan.');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
 // 2. Fungsi Dashboard Ringkasan Toko (Admin / Owner)
 export async function loadAdminDashboardData() {
     try {
@@ -122,5 +165,11 @@ window.postaAdmin = {
     initAdminView,
     loadSuperadminTenants,
     impersonateTenant,
-    loadAdminDashboardData
+    loadAdminDashboardData,
+    openAddTenantModal,
+    closeCreateTenantModal,
+    submitCreateTenant
 };
+
+window.closeCreateTenantModal = closeCreateTenantModal;
+window.submitCreateTenant = submitCreateTenant;

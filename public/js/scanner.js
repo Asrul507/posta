@@ -133,3 +133,6 @@ export function closeContinuousCamera() {
     } catch (_) {}
   }
 }
+
+window.openContinuousCamera = openContinuousCamera;
+window.closeContinuousCamera = closeContinuousCamera;
