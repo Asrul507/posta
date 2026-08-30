@@ -1,37 +1,44 @@
 // public/js/loader.js
-export async function loadComponents() {
-  const components = [
-    { id: 'header-container', path: '/components/header.html' },
-    { id: 'sidebar-container', path: '/components/sidebar.html' },
-    { id: 'view-pos-container', path: '/components/view-pos.html' },
-    { id: 'view-admin-container', path: '/components/view-admin.html' },
-    { id: 'view-history-container', path: '/components/view-history.html' },
-    { id: 'view-reports-container', path: '/components/view-reports.html' },
-    { id: 'view-products-container', path: '/components/view-products.html' },
-    { id: 'modals-container', path: '/components/modals.html' },
-    { id: 'login-container', path: '/components/login.html' }
-  ];
 
-  for (const comp of components) {
-    try {
-      const res = await fetch(comp.path);
-      if (res.ok) {
-        const html = await res.text();
-        let target = document.getElementById(comp.id);
-        
-        if (!target) {
-          // Buat container otomatis jika belum ada di index.html
-          target = document.createElement('div');
-          target.id = comp.id;
-          document.getElementById('app')?.appendChild(target);
-        }
-        
-        target.innerHTML = html;
+const COMPONENTS = [
+  { id: 'header-root', file: 'header.html' },
+  { id: 'sidebar-root', file: 'sidebar.html' },
+  { id: 'view-pos', file: 'view-pos.html' },
+  { id: 'view-products', file: 'view-products.html' },
+  { id: 'view-history', file: 'view-history.html' },
+  { id: 'view-reports', file: 'view-reports.html' },
+  { id: 'view-admin', file: 'view-admin.html' },
+  { id: 'modals-root', file: 'modals.html' },
+  { id: 'login-root', file: 'login.html' }
+];
+
+export async function loadComponents() {
+  const promises = COMPONENTS.map(async (comp) => {
+    let el = document.getElementById(comp.id);
+    
+    // Jika container belum ada, buat langsung dan masukkan ke body
+    if (!el) {
+      el = document.createElement('div');
+      el.id = comp.id;
+      if (comp.id.startsWith('view-')) {
+        el.className = 'app-view hidden';
       }
-    } catch (err) {
-      console.warn(`Gagal memuat komponen ${comp.path}:`, err);
+      document.body.appendChild(el);
     }
-  }
+
+    try {
+      const res = await fetch(`/components/${comp.file}`);
+      if (res.ok) {
+        el.innerHTML = await res.text();
+      } else {
+        console.warn(`Gagal memuat /components/${comp.file} (HTTP ${res.status})`);
+      }
+    } catch (e) {
+      console.error(`Error fetch komponen ${comp.file}:`, e);
+    }
+  });
+
+  await Promise.all(promises);
 }
 
 export default loadComponents;
