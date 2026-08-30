@@ -1,112 +1,132 @@
-import { Env } from "../types";
+import { Env, CheckoutPayload, UserPayload } from '../types';
 
-export async function handleCheckout(request: Request, env: Env): Promise<Response> {
-  try {
-    const payload: {
-      tenant_id?: string;
-      items: Array<{
-        id: string;
-        name: string;
-        cost_price?: number;
-        price: number;
-        qty: number;
-      }>;
-      payment_method?: string;
-      paid_amount: number;
-      cashier_name?: string;
-    } = await request.json();
+export async function handleCheckoutRoutes(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  authUser: UserPayload | null
+): Promise<Response> {
+  const url = new URL(request.url);
+  const path = url.pathname;
 
-    const url = new URL(request.url);
-    const host = url.hostname.toLowerCase().split(":")[0];
-    const subdomain = host.endsWith(".gpro.my.id") ? host.replace(".gpro.my.id", "") : "berkah";
+  if (path === '/api/checkout' && request.method === 'POST') {
+    const payload = (await request.json()) as CheckoutPayload;
+    const tenant_id = authUser?.tenant_id || payload.tenant_id;
 
-    // 1. Dapatkan tenant_id yang valid dari database berdasarkan subdomain atau payload
-    let tenantId = payload.tenant_id;
-    const tenant = await env.DB.prepare(
-      "SELECT id FROM tenants WHERE subdomain = ? OR id = ? LIMIT 1"
-    ).bind(subdomain, tenantId || "").first();
-
-    if (!tenant) {
-      return Response.json({ success: false, error: "Toko/Tenant tidak valid atau tidak ditemukan di database." }, { status: 400 });
+    if (!tenant_id) {
+      return new Response(JSON.stringify({ error: 'Tenant ID wajib disertakan' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
-
-    tenantId = tenant.id as string;
 
     if (!payload.items || payload.items.length === 0) {
-      return Response.json({ success: false, error: "Keranjang belanja kosong." }, { status: 400 });
+      return new Response(JSON.stringify({ error: 'Keranjang belanja kosong' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
-    const transactionId = "trx_" + Date.now();
-    const invoiceNumber = "INV-" + Date.now().toString().slice(-8);
-    const totalAmount = payload.items.reduce((acc, item) => acc + (item.price * item.qty), 0);
-    const paidAmount = Number(payload.paid_amount) || totalAmount;
-    const changeAmount = Math.max(0, paidAmount - totalAmount);
+    const transactionId = 'TRX-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const invoiceNumber = 'INV/' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '/' + Date.now().toString().slice(-6);
 
-    const statements: any[] = [];
+    let totalAmount = 0;
+    let totalCost = 0;
 
-    // 2. Insert Header Transaksi
-    statements.push(
-      env.DB.prepare(`
-        INSERT INTO transactions (id, tenant_id, invoice_number, payment_method, total_amount, paid_amount, change_amount, cashier_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        transactionId,
-        tenantId,
-        invoiceNumber,
-        payload.payment_method || "CASH",
-        totalAmount,
-        paidAmount,
-        changeAmount,
-        payload.cashier_name || "Kasir"
-      )
+    for (const item of payload.items) {
+      totalAmount += item.subtotal;
+      totalCost += (item.cost_price || 0) * item.quantity;
+    }
+
+    const discountAmount = payload.discount_amount || 0;
+    const finalAmount = totalAmount - discountAmount;
+
+    // Pastikan skema tabel mendukung shift_id
+    const insertTx = env.DB.prepare(`
+      INSERT INTO transactions (
+        id, tenant_id, invoice_number, shift_id, cashier_id, cashier_name,
+        total_amount, discount_amount, final_amount, total_cost,
+        payment_method, cash_amount, change_amount, customer_name, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(
+      transactionId,
+      tenant_id,
+      invoiceNumber,
+      payload.shift_id || null,
+      payload.cashier_id || authUser?.id || 'cashier',
+      payload.cashier_name || authUser?.username || 'Kasir',
+      totalAmount,
+      discountAmount,
+      finalAmount,
+      totalCost,
+      payload.payment_method || 'cash',
+      payload.cash_amount || finalAmount,
+      payload.change_amount || 0,
+      payload.customer_name || 'Umum',
+      payload.notes || ''
     );
 
-    // 3. Insert Items & Potong Stok Produk
-    for (const item of payload.items) {
-      const itemId = "titem_" + Math.random().toString(36).substring(2, 9);
-      const subtotal = item.price * item.qty;
+    const statements: D1PreparedStatement[] = [insertTx];
 
+    // Simpan detail item transaksi & kurangi stok
+    for (const item of payload.items) {
+      const itemId = 'TXI-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+      
       statements.push(
         env.DB.prepare(`
-          INSERT INTO transaction_items (id, transaction_id, product_id, product_name, cost_price, price, qty, subtotal)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO transaction_items (
+            id, transaction_id, product_id, product_name, barcode,
+            quantity, cost_price, selling_price, subtotal
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           itemId,
           transactionId,
-          item.id || "manual_item",
+          item.product_id,
           item.name,
+          item.barcode || '',
+          item.quantity,
           item.cost_price || 0,
           item.price,
-          item.qty,
-          subtotal
+          item.subtotal
         )
       );
 
-      // Kurangi stok jika item memiliki id produk valid di katalog
-      if (item.id) {
-        statements.push(
-          env.DB.prepare("UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ? AND tenant_id = ?")
-            .bind(item.qty, item.id, tenantId)
-        );
-      }
+      statements.push(
+        env.DB.prepare(`
+          UPDATE products
+          SET stock = stock - ?, updated_at = datetime('now')
+          WHERE id = ? AND tenant_id = ?
+        `).bind(item.quantity, item.product_id, tenant_id)
+      );
+
+      // Catat buku besar mutasi stok
+      const movementId = 'MOV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+      statements.push(
+        env.DB.prepare(`
+          INSERT INTO stock_movements (
+            id, tenant_id, product_id, type, quantity,
+            reference_id, notes, created_at
+          ) VALUES (?, ?, ?, 'sale', ?, ?, 'Penjualan POS', datetime('now'))
+        `).bind(movementId, tenant_id, item.product_id, -item.quantity, transactionId)
+      );
     }
 
-    // Eksekusi secara atomic (Batch Transaction)
     await env.DB.batch(statements);
 
-    return Response.json({
-      success: true,
-      message: "Transaksi berhasil disimpan",
-      data: {
+    return new Response(
+      JSON.stringify({
+        success: true,
         transaction_id: transactionId,
         invoice_number: invoiceNumber,
-        total_amount: totalAmount,
-        paid_amount: paidAmount,
-        change_amount: changeAmount
-      }
-    });
-  } catch (err: any) {
-    console.error("Checkout Error:", err);
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+        final_amount: finalAmount,
+        change_amount: payload.change_amount || 0,
+      }),
+      { headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    );
   }
+
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    status: 405,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
 }
