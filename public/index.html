@@ -8,68 +8,108 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   
   <style>
+    /* =========================================================================
+       1. BASE & RESET
+       ========================================================================= */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #1e293b; }
     body { display: flex; flex-direction: column; overflow: hidden; }
 
-    /* Layout Structure */
+    .hidden { display: none !important; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    /* =========================================================================
+       2. APP LAYOUT & WRAPPERS
+       ========================================================================= */
     #header-root { width: 100%; flex-shrink: 0; z-index: 20; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
     .app-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
-    #sidebar-root { z-index: 30; }
     .main-content { flex: 1; overflow-y: auto; padding: 1.5rem; background-color: #f8fafc; position: relative; }
-    
-    /* Utilities */
-    .hidden { display: none !important; }
     .app-view { width: 100%; max-width: 1200px; margin: 0 auto; }
 
-    /* Header Bar */
-    .header-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; }
-    .header-left, .header-right { display: flex; align-items: center; gap: 0.75rem; }
-    .header-title { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
-    .header-meta { font-size: 0.8rem; color: #64748b; }
+    /* =========================================================================
+       3. HEADER BAR STYLING (SESUAI HEADER.HTML)
+       ========================================================================= */
+    .app-header, .header-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; height: 60px; background: #ffffff; }
+    .header-left { display: flex; align-items: center; gap: 1rem; }
+    .header-menu-btn, .btn-menu-toggle { background: transparent; border: 1px solid #e2e8f0; border-radius: 0.375rem; padding: 0.5rem 0.65rem; cursor: pointer; color: #334155; font-size: 1rem; }
+    .header-menu-btn:hover { background-color: #f1f5f9; }
+    .header-brand { display: flex; flex-direction: column; }
+    .header-brand h1, .header-title { font-size: 1.2rem; font-weight: 700; color: #0f172a; margin: 0; line-height: 1.2; }
+    .header-meta { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+    .header-actions { display: flex; align-items: center; gap: 0.5rem; }
+    .btn-shift { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid #fef08a; background-color: #fef9c3; color: #854d0e; }
 
-    /* Sidebar Navigation */
-    #sidebar-root { position: fixed; top: 0; bottom: 0; left: 0; width: 280px; background: #ffffff; border-right: 1px solid #e2e8f0; z-index: 50; transform: translateX(-100%); transition: transform 0.25s ease-in-out; box-shadow: 4px 0 15px rgba(0,0,0,0.05); }
-    #sidebar-root.active { transform: translateX(0) !important; }
+    /* =========================================================================
+       4. SIDEBAR DRAWER (SESUAI SIDEBAR.HTML)
+       ========================================================================= */
+    #sidebar-root { position: fixed; top: 0; bottom: 0; left: 0; width: 280px; background: #ffffff; border-right: 1px solid #e2e8f0; z-index: 50; transform: translateX(-100%); transition: transform 0.25s ease-in-out; box-shadow: 4px 0 15px rgba(0,0,0,0.08); }
+    #sidebar-root.active, .app-sidebar.active { transform: translateX(0) !important; }
     .sidebar-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-    .sidebar-menu { padding: 1rem 0; overflow-y: auto; height: calc(100% - 60px); }
-    .sidebar-group { margin-bottom: 1.25rem; }
-    .sidebar-group-title { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; padding: 0 1.25rem 0.5rem; }
-    .sidebar-link { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.65rem 1.25rem; font-size: 0.875rem; color: #334155; text-decoration: none; border: none; background: transparent; cursor: pointer; text-align: left; }
-    .sidebar-link:hover { background-color: #f1f5f9; color: #2563eb; }
+    .sidebar-header h2 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0; }
+    .sidebar-close-btn { background: transparent; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer; padding: 4px; }
+    .sidebar-content, .sidebar-menu { padding: 1rem 0; overflow-y: auto; height: calc(100% - 60px); }
+    .sidebar-section { margin-bottom: 1.25rem; }
+    .sidebar-section-title { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 1.25rem 0.5rem; }
+    .sidebar-nav { list-style: none; }
+    .sidebar-item { margin-bottom: 2px; }
+    .sidebar-link, .nav-btn { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.65rem 1.25rem; font-size: 0.875rem; color: #334155; text-decoration: none; border: none; background: transparent; cursor: pointer; text-align: left; transition: background 0.15s; }
+    .sidebar-link:hover, .nav-btn:hover { background-color: #f1f5f9; color: #2563eb; }
+    .sidebar-link i { width: 20px; text-align: center; color: #64748b; }
+    .sidebar-link:hover i { color: #2563eb; }
 
-    /* Cards & Tables */
+    /* =========================================================================
+       5. CARDS, TABLES, BUTTONS, BADGES
+       ========================================================================= */
     .card { background: #ffffff; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 1.25rem; margin-bottom: 1.5rem; }
-    .view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
-    .table-container { width: 100%; overflow-x: auto; }
-    .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-    .data-table th { background-color: #f8fafc; color: #475569; font-weight: 600; padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; }
-    .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; }
-    .data-table tr:hover td { background-color: #f8fafc; }
+    .view-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; }
+    .subtitle { color: #64748b; font-size: 0.875rem; margin-top: 0.25rem; }
 
-    /* Buttons */
-    .btn { display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; pointer-events: auto; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
     .btn-primary { background-color: #2563eb; color: #ffffff; }
     .btn-primary:hover { background-color: #1d4ed8; }
     .btn-secondary { background-color: #ffffff; border-color: #cbd5e1; color: #334155; }
     .btn-secondary:hover { background-color: #f8fafc; }
-    .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 0.375rem; }
+    .btn-outline { background-color: transparent; border-color: #cbd5e1; color: #334155; }
+    .btn-outline:hover { background-color: #f8fafc; border-color: #94a3b8; }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; border-radius: 0.375rem; }
 
-    /* Badges */
+    .table-container { width: 100%; overflow-x: auto; }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+    .data-table th { background-color: #f8fafc; color: #475569; font-weight: 600; padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
+    .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .data-table tr:hover td { background-color: #f8fafc; }
+
     .badge { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-flex; }
     .badge-info { background: #e0e7ff; color: #3730a3; }
     .badge-success { background: #dcfce7; color: #166534; }
     .badge-danger { background: #fee2e2; color: #991b1b; }
 
-    /* Modal Backdrop Layer Protection */
-    .modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
-    .modal-backdrop.hidden, [id^="modal-"].hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }
-    .modal-box { background: #ffffff; border-radius: 0.75rem; max-width: 500px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); padding: 1.5rem; }
+    /* =========================================================================
+       6. MODAL & LOGIN BACKDROP LAYER (KLIK TIDAK TERBLOKIR)
+       ========================================================================= */
+    #modals-root, #login-root { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
+    .modal-backdrop, .login-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; padding: 1rem; pointer-events: auto; }
+    .modal-backdrop.hidden, .login-backdrop.hidden, [id^="modal-"].hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }
+    
+    .modal-box, .login-box { background: #ffffff; border-radius: 0.75rem; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); padding: 1.5rem; pointer-events: auto; }
+    .modal-lg { max-width: 750px; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .btn-close { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
     .form-group { margin-bottom: 1rem; }
     .form-group label { display: block; font-size: 0.85rem; font-weight: 500; color: #334155; margin-bottom: 0.35rem; }
     .form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.375rem; font-size: 0.875rem; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
+
+    /* =========================================================================
+       7. POS KASIR LAYOUT
+       ========================================================================= */
+    .pos-view-container { display: grid; grid-template-columns: 1fr 350px; gap: 1.5rem; height: calc(100vh - 110px); }
+    @media (max-width: 900px) { .pos-view-container { grid-template-columns: 1fr; height: auto; } }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; overflow-y: auto; padding: 4px; }
+    .product-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; cursor: pointer; transition: all 0.15s; }
+    .product-card:hover { border-color: #2563eb; transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    .cart-panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1rem; display: flex; flex-direction: column; justify-content: space-between; }
   </style>
 </head>
 <body>
@@ -77,10 +117,12 @@
   <!-- Header Root -->
   <div id="header-root"></div>
 
-  <!-- Main Layout -->
+  <!-- Main App Layout Wrapper -->
   <div class="app-layout">
+    <!-- Sidebar Root -->
     <div id="sidebar-root"></div>
 
+    <!-- Main Content Views -->
     <main id="main-content" class="main-content">
       <div id="view-admin" class="app-view hidden"></div>
       <div id="view-pos" class="app-view hidden"></div>
@@ -90,9 +132,9 @@
     </main>
   </div>
 
-  <!-- Container Modal & Login (Tidak menghalangi klik) -->
-  <div id="modals-root" style="pointer-events: none;"></div>
-  <div id="login-root" style="pointer-events: none;"></div>
+  <!-- Modals & Login Root -->
+  <div id="modals-root"></div>
+  <div id="login-root"></div>
 
   <script type="module" src="/js/app.js"></script>
 </body>
