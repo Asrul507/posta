@@ -2,29 +2,26 @@ import { state } from './state.js';
 import { loadComponents } from './loader.js';
 import { initAuth } from './views/auth.js';
 import { navigateTo, initNavigation } from './navigation.js';
-import { initShifts, checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
-import { initPOS } from './views/pos.js';
-import { initProducts } from './views/products.js';
-import { initPO } from './views/po.js';
-import { initReports } from './views/reports.js';
-import { initAdminView } from './views/admin.js';
+import { checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
+
+// Muat modul view agar event listener masing-masing aktif
+import './views/pos.js';
+import './views/products.js';
+import './views/po.js';
+import './views/checkout.js';
+import './views/reports.js';
+import './views/admin.js';
 
 async function bootstrap() {
   try {
-    // 1. Muat seluruh komponen UI HTML
+    // 1. Muat template HTML komponen
     await loadComponents();
 
-    // 2. Inisialisasi event listener seluruh modul view
-    initAuth();
-    initNavigation();
-    
-    if (typeof initPOS === 'function') initPOS();
-    if (typeof initProducts === 'function') initProducts();
-    if (typeof initPO === 'function') initPO();
-    if (typeof initReports === 'function') initReports();
-    if (typeof initShifts === 'function') initShifts();
+    // 2. Inisialisasi Auth & Navigasi
+    if (typeof initAuth === 'function') initAuth();
+    if (typeof initNavigation === 'function') initNavigation();
 
-    // 3. Periksa sesi login yang tersimpan
+    // 3. Cek sesi login tersimpan
     const savedToken = localStorage.getItem('posta_token');
     const savedUser = localStorage.getItem('posta_user');
 
@@ -40,7 +37,7 @@ async function bootstrap() {
         headerUser.textContent = `${state.user.name} (${state.user.role})`;
       }
 
-      // Role Routing
+      // Logika Routing Role
       const adminNavItems = document.querySelectorAll('.nav-admin-only');
       if (state.user.role === 'CASHIER') {
         adminNavItems.forEach(el => el.classList.add('hidden'));
@@ -48,7 +45,7 @@ async function bootstrap() {
         await checkAndRestoreShift();
       } else {
         adminNavItems.forEach(el => el.classList.remove('hidden'));
-        // Admin/Owner/Superadmin langsung ke Dashboard Admin
+        // Admin / Owner / Superadmin langsung ke Dashboard Admin (tanpa modal shift)
         navigateTo('admin');
         if (typeof updateHeaderShiftStatus === 'function') {
           updateHeaderShiftStatus(null);
@@ -59,7 +56,7 @@ async function bootstrap() {
       document.getElementById('main-layout')?.classList.add('hidden');
     }
   } catch (err) {
-    console.error('Bootstrap application failed:', err);
+    console.error('Bootstrap error:', err);
   }
 }
 
