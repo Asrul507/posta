@@ -1,30 +1,35 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Posta POS - Sistem Kasir Multi-Tenant</title>
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
-  <link rel="stylesheet" href="/css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posta POS - Cloud POS System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased h-screen flex flex-col overflow-hidden font-sans">
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+    <div id="app-container" class="min-h-screen flex flex-col">
+        <!-- Komponen akan dimuat secara dinamis oleh loader.js -->
+        <div id="auth-container"></div>
+        <div id="main-layout" class="hidden flex-1 flex flex-col">
+            <div id="header-container"></div>
+            <div class="flex-1 flex overflow-hidden">
+                <div id="sidebar-container"></div>
+                <main id="content-container" class="flex-1 overflow-y-auto bg-gray-50"></main>
+            </div>
+        </div>
+    </div>
 
-  <div id="toast-container" class="fixed top-4 right-4 z-[150] space-y-2 pointer-events-none"></div>
+    <!-- Modals Container -->
+    <div id="modals-container"></div>
 
-  <!-- Placeholder Komponen Modular -->
-  <div id="comp-login"></div>
-  <div id="comp-sidebar"></div>
-  <div id="comp-header"></div>
-  <div id="comp-view-pos"></div>
-  <div id="comp-view-products"></div>
-  <div id="comp-view-history"></div>
-  <div id="comp-view-reports"></div>
-  <div id="comp-view-admin"></div>
-  <div id="comp-modals"></div>
-
-  <script type="module" src="/js/app.js"></script>
+    <!-- Core App Scripts -->
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
