@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { loadAdminDashboardData } from './views/admin.js';
+import { initAdminView } from './views/admin.js';
 import { initReports } from './views/reports.js';
 import { checkAndRestoreShift } from './views/shifts.js';
 
@@ -7,7 +7,7 @@ export function navigateTo(viewName) {
     const content = document.getElementById('content-container');
     if (!content) return;
 
-    // Sembunyikan semua container subview atau muat HTML view yang sesuai
+    // Sembunyikan semua subview
     document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
 
     const target = document.getElementById(`view-${viewName}`);
@@ -15,10 +15,10 @@ export function navigateTo(viewName) {
         target.classList.remove('hidden');
     }
 
-    // Eksekusi data loader berdasarkan view yang dipilih
+    // Panggil inisialisasi view sesuai halaman yang dibuka
     if (viewName === 'admin') {
-        loadAdminDashboardData();
-    } else if (viewName === 'reports-daily' || viewName === 'reports-monthly') {
+        initAdminView();
+    } else if (viewName === 'reports' || viewName === 'reports-daily' || viewName === 'reports-monthly') {
         initReports();
     } else if (viewName === 'pos') {
         checkAndRestoreShift();
