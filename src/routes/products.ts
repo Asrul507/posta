@@ -16,36 +16,46 @@ function extractTenantFromHost(hostname: string): string {
   return "posta";
 }
 
-// 1. Ambil Produk Sesuai Tenant / Toko
+// 1. Ambil Produk Khusus Toko yang Sedang Aktif
 productsRoute.get('/', async (c) => {
   try {
     const sub = extractTenantFromHost(new URL(c.req.url).hostname);
-    let query = "SELECT * FROM products ORDER BY name ASC";
-    let params: any[] = [];
+    let results: any[] = [];
 
-    if (sub !== "posta") {
-      const tenant = await c.env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ?").bind(sub).first<{ id: string }>();
+    if (sub === "posta") {
+      // Jika di pusat / developer dashboard, ambil semua produk
+      const query = "SELECT * FROM products ORDER BY name ASC";
+      const res = await c.env.DB.prepare(query).all();
+      results = res.results;
+    } else {
+      // Ambil ID tenant toko tersebut
+      const tenant = await c.env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ? AND is_active = 1")
+        .bind(sub)
+        .first<{ id: string }>();
+
       if (tenant) {
-        query = "SELECT * FROM products WHERE tenant_id = ? ORDER BY name ASC";
-        params = [tenant.id];
+        const query = "SELECT * FROM products WHERE tenant_id = ? ORDER BY name ASC";
+        const res = await c.env.DB.prepare(query).bind(tenant.id).all();
+        results = res.results;
       }
     }
 
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
     return c.json({ success: true, data: results });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
   }
 });
 
-// 2. Tambah Produk Baru
+// 2. Tambah Produk ke Toko yang Aktif
 productsRoute.post('/', async (c) => {
   try {
     const sub = extractTenantFromHost(new URL(c.req.url).hostname);
     let tenantId: string | null = null;
 
     if (sub !== "posta") {
-      const tenant = await c.env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ?").bind(sub).first<{ id: string }>();
+      const tenant = await c.env.DB.prepare("SELECT id FROM tenants WHERE subdomain = ? AND is_active = 1")
+        .bind(sub)
+        .first<{ id: string }>();
       if (tenant) tenantId = tenant.id;
     }
 
