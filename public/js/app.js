@@ -5,18 +5,17 @@ import { checkAuth } from './views/auth.js';
 import { initNavigation } from './navigation.js';
 
 // =========================================================================
-// MODAL & SIDEBAR CONTROLLER NATIVE POSTA
+// MODAL CONTROLLER (MENGGUNAKAN CLASS .HIDDEN CSS POSTA)
 // =========================================================================
 window.openModal = function(modalId) {
-  // Dukung alternatif nama ID modal
   let modal = document.getElementById(modalId);
   if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
   if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
 
   if (modal) {
     modal.classList.remove('hidden');
-    // Jika modal menggunakan class modal-backdrop
-    modal.style.display = 'flex';
+  } else {
+    console.warn('Modal tidak ditemukan:', modalId);
   }
 };
 
@@ -27,7 +26,6 @@ window.closeModal = function(modalId) {
 
   if (modal) {
     modal.classList.add('hidden');
-    modal.style.display = 'none';
   }
 };
 
@@ -43,7 +41,7 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// INISIALISASI APLIKASI
+// INISIALISASI UTAMA APLIKASI
 // =========================================================================
 async function initApp() {
   console.log('Posta POS Initializing...');
@@ -51,7 +49,7 @@ async function initApp() {
   // 1. Muat komponen HTML
   await loadComponents();
 
-  // 2. Ambil informasi tenant
+  // 2. Ambil data tenant
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
@@ -61,13 +59,13 @@ async function initApp() {
     console.warn('Gagal memuat tenant info:', err);
   }
 
-  // 3. Cek autentikasi login
+  // 3. Autentikasi
   checkAuth();
 
   // 4. Inisialisasi navigasi
   initNavigation();
 
-  // 5. Setup tombol header
+  // 5. Daftarkan event tombol header & shift
   setupGlobalEvents();
 }
 
