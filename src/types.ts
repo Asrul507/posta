@@ -1,35 +1,61 @@
 export interface Env {
   DB: D1Database;
-  ASSETS: Fetcher;
+  JWT_SECRET?: string;
+}
+
+export interface UserPayload {
+  id: string;
+  tenant_id: string;
+  username: string;
+  role: string;
 }
 
 export interface Product {
   id: string;
   tenant_id: string;
-  barcode?: string;
+  barcode: string;
   name: string;
-  price: number;
-  cost_price?: number;
+  category: string;
+  cost_price: number;
+  selling_price: number;
   stock: number;
-  unit?: string;
-  category_name?: string;
+  unit: string;
+  is_active: number;
 }
 
 export interface CartItem {
-  id: string;
+  product_id: string;
+  barcode: string;
   name: string;
   price: number;
-  cost_price?: number;
-  qty: number;
+  cost_price: number;
+  quantity: number;
+  subtotal: number;
 }
 
-export interface POItem {
-  id?: string;
-  name: string;
-  barcode?: string;
-  cost_price: number;
-  price?: number;
-  unit?: string;
-  qty: number;
-  is_new?: boolean;
+export interface CheckoutPayload {
+  tenant_id: string;
+  cashier_id: string;
+  cashier_name: string;
+  shift_id?: string | null;
+  items: CartItem[];
+  payment_method: 'cash' | 'qris' | 'card';
+  cash_amount: number;
+  change_amount: number;
+  discount_amount?: number;
+  customer_name?: string;
+  notes?: string;
+}
+
+export interface POPayload {
+  tenant_id: string;
+  supplier_id: string;
+  user_id: string;
+  items: Array<{
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    cost_price: number;
+  }>;
+  notes?: string;
 }
