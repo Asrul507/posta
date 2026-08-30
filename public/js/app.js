@@ -5,7 +5,7 @@ import { checkAuth } from './views/auth.js';
 import { initNavigation } from './navigation.js';
 
 // =========================================================================
-// MODAL CONTROLLER GLOBAL
+// MODAL CONTROLLER (MENGIZINKAN KLIK HANYA SAAT DIBUKA)
 // =========================================================================
 window.openModal = function(modalId) {
   let modal = document.getElementById(modalId);
@@ -14,9 +14,11 @@ window.openModal = function(modalId) {
 
   if (modal) {
     modal.classList.remove('hidden');
-    // Jika modal berada di dalam backdrop container
-    const backdrop = modal.closest('.modal-backdrop') || modal;
-    backdrop.classList.remove('hidden');
+    modal.style.pointerEvents = 'auto';
+
+    // Buka akses pointer root container
+    const modalsRoot = document.getElementById('modals-root');
+    if (modalsRoot) modalsRoot.style.pointerEvents = 'auto';
   } else {
     console.warn('Modal tidak ditemukan:', modalId);
   }
@@ -29,8 +31,14 @@ window.closeModal = function(modalId) {
 
   if (modal) {
     modal.classList.add('hidden');
-    const backdrop = modal.closest('.modal-backdrop') || modal;
-    backdrop.classList.add('hidden');
+    modal.style.pointerEvents = 'none';
+
+    // Kunci kembali akses pointer jika seluruh modal tertutup
+    const activeModals = document.querySelectorAll('.modal-backdrop:not(.hidden)');
+    if (activeModals.length === 0) {
+      const modalsRoot = document.getElementById('modals-root');
+      if (modalsRoot) modalsRoot.style.pointerEvents = 'none';
+    }
   }
 };
 
@@ -49,36 +57,36 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// INISIALISASI UTAMA APLIKASI
+// INISIALISASI UTAMA
 // =========================================================================
 async function initApp() {
   console.log('Posta POS App Initializing...');
 
-  // 1. Muat template komponen HTML
+  // 1. Muat komponen HTML
   await loadComponents();
 
-  // 2. Ambil informasi toko / tenant
+  // 2. Ambil informasi toko
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
       state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.warn('Gagal memuat tenant info:', err);
+    console.warn('Tenant info load:', err);
   }
 
-  // 3. Autentikasi sesi
+  // 3. Cek login
   checkAuth();
 
   // 4. Jalankan Navigasi
   initNavigation();
 
-  // 5. Setup tombol global
+  // 5. Daftarkan event tombol
   setupGlobalEvents();
 }
 
 function setupGlobalEvents() {
-  // Tombol buka/tutup menu sidebar
+  // Tombol menu sidebar
   document.addEventListener('click', (e) => {
     if (e.target.closest('.header-menu-btn, .btn-menu-toggle, .sidebar-close-btn, [onclick*="toggleSidebar"]')) {
       e.preventDefault();
