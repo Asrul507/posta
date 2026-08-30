@@ -1,73 +1,75 @@
 import { state } from './state.js';
-import { loadComponents } from './loader.js';
-import { initAuth } from './views/auth.js';
-import { navigateTo, initNavigation } from './navigation.js';
-import { initShifts, checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
-import { initHardwareScannerListener } from './scanner.js';
+import { api } from './api.js';
+import { initNavigation, navigateTo } from './navigation.js';
+import { initPOSView } from './views/pos.js';
 
-// Load semua views agar event & fungsi window.* nya terpasang ke DOM
-import './views/pos.js';
-import './views/po.js';
-import './views/checkout.js';
-import './views/reports.js';
-import './views/admin.js';
-import './views/history.js';
-
-function applyRoleBasedUI(user) {
-  const headerUser = document.getElementById('header-user-info');
-  if (headerUser) headerUser.textContent = `${user.name} (${user.role})`;
-
-  document.querySelectorAll('.current-user-name').forEach(el => {
-    el.textContent = user.name;
-  });
-
-  const adminNavs = document.querySelectorAll('.role-admin-only');
-  if (user.role === 'CASHIER') {
-    adminNavs.forEach(el => el.classList.add('hidden'));
-  } else {
-    adminNavs.forEach(el => el.classList.remove('hidden'));
+// =========================================================================
+// MODAL CONTROLLER GLOBAL
+// =========================================================================
+window.openModal = function(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
   }
-}
+};
 
-async function bootstrap() {
+window.closeModal = function(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+};
+
+// =========================================================================
+// INISIALISASI APLIKASI
+// =========================================================================
+async function initApp() {
+  console.log('Posta POS App Initializing...');
+
+  // 1. Ambil info tenant / toko saat ini
   try {
-    // 1. Muat template komponen HTML
-    await loadComponents();
-
-    // 2. Inisialisasi Auth, Navigasi, Shift & Scanner
-    initAuth();
-    initNavigation();
-    initShifts();
-    initHardwareScannerListener();
-
-    // 3. Periksa sesi login yang tersimpan
-    const savedToken = localStorage.getItem('posta_token');
-    const savedUser = localStorage.getItem('posta_user');
-
-    if (savedToken && savedUser) {
-      state.token = savedToken;
-      state.user = JSON.parse(savedUser);
-      state.tenantId = state.user.tenant_id || null;
-
-      document.getElementById('login-overlay')?.classList.add('hidden');
-      document.getElementById('main-layout')?.classList.remove('hidden');
-
-      applyRoleBasedUI(state.user);
-
-      if (state.user.role === 'CASHIER') {
-        navigateTo('view-pos');
-        await checkAndRestoreShift();
-      } else {
-        navigateTo('view-admin');
-        updateHeaderShiftStatus(null);
-      }
-    } else {
-      document.getElementById('main-layout')?.classList.add('hidden');
-      document.getElementById('login-overlay')?.classList.remove('hidden');
+    const tenantInfo = await api('/api/tenant/info', 'GET');
+    if (tenantInfo && tenantInfo.data) {
+      state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.error('Error saat inisialisasi aplikasi:', err);
+    console.warn('Gagal memuat data tenant:', err);
+  }
+
+  // 2. Pasang inisialisasi Navigasi & View Default
+  initNavigation();
+
+  // 3. Muat Katalog POS
+  await initPOSView();
+
+  // 4. Setup Tombol Shift & Sidebar
+  setupHeaderEvents();
+}
+
+function setupHeaderEvents() {
+  // Tombol Menu / Sidebar Toggle
+  const menuBtn = document.querySelector('.header-menu-btn') || document.querySelector('button[aria-label="menu"]') || document.querySelector('.fa-bars')?.parentElement;
+  if (menuBtn) {
+    menuBtn.onclick = () => {
+      const sidebar = document.querySelector('.app-sidebar') || document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('active');
+    };
+  }
+
+  // Tombol Shift
+  const shiftBtn = document.querySelector('.btn-shift') || document.getElementById('btn-shift-status');
+  if (shiftBtn) {
+    shiftBtn.onclick = () => {
+      window.openModal('modal-shift');
+    };
   }
 }
 
-document.addEventListener('DOMContentLoaded', bootstrap);
+// Jalankan aplikasi saat DOM siap
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
