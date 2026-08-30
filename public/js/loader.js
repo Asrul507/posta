@@ -1,11 +1,10 @@
-// public/js/loader.js
 const COMPONENTS = [
     { containerId: 'auth-container', file: 'components/login.html' },
     { containerId: 'header-container', file: 'components/header.html' },
     { containerId: 'sidebar-container', file: 'components/sidebar.html' },
     { containerId: 'modals-container', file: 'components/modals.html' },
     
-    // View Halaman Utama
+    // Sub-views utama
     { containerId: 'content-container', file: 'components/view-pos.html', isView: true, viewId: 'view-pos' },
     { containerId: 'content-container', file: 'components/view-admin.html', isView: true, viewId: 'view-admin' },
     { containerId: 'content-container', file: 'components/view-products.html', isView: true, viewId: 'view-products' },
@@ -18,7 +17,7 @@ export async function loadComponents() {
         try {
             const response = await fetch(comp.file);
             if (!response.ok) {
-                console.warn(`Gagal memuat: ${comp.file} (${response.status})`);
+                console.warn(`Gagal memuat komponen: ${comp.file} (${response.status})`);
                 continue;
             }
             const html = await response.text();
