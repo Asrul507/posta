@@ -1,4 +1,4 @@
-import { apiFetch } from '../api.js';
+import { api } from '../api.js';
 import { state } from '../state.js';
 
 export async function initAdminView() {
@@ -16,19 +16,20 @@ export async function initAdminView() {
     }
 }
 
-// 1. Fungsi Lama Superadmin (Developer Hub)
+// 1. Fungsi Superadmin / Developer
 export async function loadSuperadminTenants() {
     try {
-        const res = await apiFetch('/api/admin/tenants');
+        const res = await api('/api/admin/tenants', 'GET');
         const tbody = document.getElementById('superadmin-tenants-table');
-        if (!tbody || !res || !res.tenants) return;
+        if (!tbody || !res) return;
 
-        if (res.tenants.length === 0) {
+        const tenantList = res.data || res.tenants || [];
+        if (tenantList.length === 0) {
             tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-6 text-center text-gray-400">Belum ada tenant terdaftar.</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = res.tenants.map(t => `
+        tbody.innerHTML = tenantList.map(t => `
             <tr class="hover:bg-gray-50 border-b">
                 <td class="px-4 py-3 font-medium text-gray-800">${t.name}</td>
                 <td class="px-4 py-3 text-blue-600">${t.subdomain}</td>
@@ -38,7 +39,7 @@ export async function loadSuperadminTenants() {
                     </span>
                 </td>
                 <td class="px-4 py-3">
-                    <button onclick="window.postaAdmin?.impersonateTenant('${t.id}')" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition">
+                    <button onclick="window.postaAdmin?.impersonateTenant('${t.subdomain}')" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition">
                         Masuk (SSO)
                     </button>
                 </td>
@@ -49,29 +50,47 @@ export async function loadSuperadminTenants() {
     }
 }
 
-// 2. Fungsi Baru Dashboard Toko (Admin / Owner)
+export async function impersonateTenant(subdomain) {
+    try {
+        const res = await api(`/api/admin/impersonate?subdomain=${subdomain}`, 'GET');
+        if (res && res.success && res.target_url) {
+            window.location.href = res.target_url;
+        } else {
+            alert(res?.error || 'Gagal melakukan SSO Impersonate.');
+        }
+    } catch (err) {
+        console.error('Error saat impersonate:', err);
+    }
+}
+
+// 2. Fungsi Dashboard Ringkasan Toko (Admin / Owner)
 export async function loadAdminDashboardData() {
     try {
-        const res = await apiFetch('/api/shifts/summary-today');
+        const res = await api('/api/shifts/summary-today', 'GET');
         if (!res || !res.success) return;
 
         // Render Shift Terakhir
         const latest = res.latest_shift;
-        if (latest) {
-            const badge = document.getElementById('dash-latest-shift-badge');
-            const sales = document.getElementById('dash-latest-shift-sales');
-            const cashier = document.getElementById('dash-latest-shift-cashier');
-            const timeEl = document.getElementById('dash-latest-shift-time');
+        const badge = document.getElementById('dash-latest-shift-badge');
+        const sales = document.getElementById('dash-latest-shift-sales');
+        const cashier = document.getElementById('dash-latest-shift-cashier');
+        const timeEl = document.getElementById('dash-latest-shift-time');
 
+        if (latest) {
             if (badge) badge.textContent = latest.shift_name || 'Shift';
             if (sales) sales.textContent = 'Rp ' + Number(latest.total_sales || 0).toLocaleString('id-ID');
             if (cashier) cashier.textContent = latest.cashier_name || '-';
             if (timeEl) {
                 timeEl.textContent = latest.start_time ? new Date(latest.start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
             }
+        } else {
+            if (badge) badge.textContent = 'Belum Ada';
+            if (sales) sales.textContent = 'Rp 0';
+            if (cashier) cashier.textContent = '-';
+            if (timeEl) timeEl.textContent = '-';
         }
 
-        // Render Shift Aktif (OPEN)
+        // Render Kasir Aktif (OPEN)
         const activeList = res.active_shifts || [];
         const countEl = document.getElementById('dash-active-shift-count');
         if (countEl) countEl.textContent = `${activeList.length} Akun`;
@@ -102,5 +121,6 @@ export async function loadAdminDashboardData() {
 window.postaAdmin = {
     initAdminView,
     loadSuperadminTenants,
+    impersonateTenant,
     loadAdminDashboardData
 };
