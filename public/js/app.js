@@ -5,7 +5,7 @@ import { checkAuth } from './views/auth.js';
 import { initNavigation } from './navigation.js';
 
 // =========================================================================
-// MODAL & SIDEBAR CONTROLLER
+// MODAL CONTROLLER
 // =========================================================================
 window.openModal = function(modalId) {
   let modal = document.getElementById(modalId);
@@ -14,8 +14,14 @@ window.openModal = function(modalId) {
 
   if (modal) {
     modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    modal.style.pointerEvents = 'auto';
+
+    // Buka akses pointer pada kontainer root modal
+    const modalsRoot = document.getElementById('modals-root');
+    if (modalsRoot) modalsRoot.style.pointerEvents = 'auto';
   } else {
-    console.warn('Modal target tidak ditemukan:', modalId);
+    console.warn('Modal tidak ditemukan:', modalId);
   }
 };
 
@@ -26,11 +32,20 @@ window.closeModal = function(modalId) {
 
   if (modal) {
     modal.classList.add('hidden');
+    modal.style.display = 'none';
+    modal.style.pointerEvents = 'none';
+
+    // Kunci kembali akses pointer jika semua modal sudah tertutup
+    const openModals = document.querySelectorAll('.modal-backdrop:not(.hidden)');
+    if (openModals.length === 0) {
+      const modalsRoot = document.getElementById('modals-root');
+      if (modalsRoot) modalsRoot.style.pointerEvents = 'none';
+    }
   }
 };
 
 window.toggleSidebar = function(forceState) {
-  const sidebar = document.getElementById('sidebar-root') || document.querySelector('.sidebar');
+  const sidebar = document.getElementById('sidebar-root');
   if (!sidebar) return;
 
   if (typeof forceState === 'boolean') {
@@ -46,7 +61,7 @@ window.toggleSidebar = function(forceState) {
 async function initApp() {
   console.log('Posta POS Initializing...');
 
-  // 1. Muat komponen HTML
+  // 1. Muat template partial HTML
   await loadComponents();
 
   // 2. Ambil informasi toko
@@ -56,21 +71,20 @@ async function initApp() {
       state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.warn('Tenant info load:', err);
+    console.warn('Gagal memuat info tenant:', err);
   }
 
-  // 3. Autentikasi sesi
+  // 3. Autentikasi
   checkAuth();
 
-  // 4. Jalankan Navigasi
+  // 4. Inisialisasi navigasi
   initNavigation();
 
-  // 5. Setup tombol
+  // 5. Daftarkan event tombol
   setupGlobalEvents();
 }
 
 function setupGlobalEvents() {
-  // Tombol menu sidebar
   document.addEventListener('click', (e) => {
     if (e.target.closest('.header-menu-btn, .btn-menu-toggle, [onclick*="toggleSidebar"]')) {
       e.preventDefault();
@@ -78,7 +92,6 @@ function setupGlobalEvents() {
     }
   });
 
-  // Tombol Shift
   const shiftBtn = document.getElementById('btn-shift-status') || document.querySelector('.btn-shift');
   if (shiftBtn) {
     shiftBtn.onclick = () => window.openModal('modal-shift');
