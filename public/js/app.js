@@ -2,9 +2,9 @@ import { state } from './state.js';
 import { loadComponents } from './loader.js';
 import { initAuth } from './views/auth.js';
 import { navigateTo, initNavigation } from './navigation.js';
-import { checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
+import { initShifts, checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
 
-// Muat modul view agar event listener masing-masing aktif
+// Load semua views agar event-nya terpasang ke DOM
 import './views/pos.js';
 import './views/products.js';
 import './views/po.js';
@@ -14,14 +14,15 @@ import './views/admin.js';
 
 async function bootstrap() {
   try {
-    // 1. Muat template HTML komponen
+    // 1. Muat template komponen HTML
     await loadComponents();
 
-    // 2. Inisialisasi Auth & Navigasi
-    if (typeof initAuth === 'function') initAuth();
-    if (typeof initNavigation === 'function') initNavigation();
+    // 2. Inisialisasi Auth, Navigasi & Event Shift
+    initAuth();
+    initNavigation();
+    initShifts();
 
-    // 3. Cek sesi login tersimpan
+    // 3. Periksa sesi login yang tersimpan
     const savedToken = localStorage.getItem('posta_token');
     const savedUser = localStorage.getItem('posta_user');
 
@@ -37,26 +38,24 @@ async function bootstrap() {
         headerUser.textContent = `${state.user.name} (${state.user.role})`;
       }
 
-      // Logika Routing Role
-      const adminNavItems = document.querySelectorAll('.nav-admin-only');
+      // Sembunyikan item sidebar menu admin jika role kasir
+      const adminNavs = document.querySelectorAll('.nav-admin-only');
       if (state.user.role === 'CASHIER') {
-        adminNavItems.forEach(el => el.classList.add('hidden'));
-        navigateTo('pos');
+        adminNavs.forEach(el => el.classList.add('hidden'));
+        navigateTo('view-pos');
         await checkAndRestoreShift();
       } else {
-        adminNavItems.forEach(el => el.classList.remove('hidden'));
-        // Admin / Owner / Superadmin langsung ke Dashboard Admin (tanpa modal shift)
-        navigateTo('admin');
-        if (typeof updateHeaderShiftStatus === 'function') {
-          updateHeaderShiftStatus(null);
-        }
+        adminNavs.forEach(el => el.classList.remove('hidden'));
+        // Admin, Owner, Superadmin langsung ke Dashboard Admin
+        navigateTo('view-admin');
+        updateHeaderShiftStatus(null);
       }
     } else {
       document.getElementById('auth-container')?.classList.remove('hidden');
       document.getElementById('main-layout')?.classList.add('hidden');
     }
   } catch (err) {
-    console.error('Bootstrap error:', err);
+    console.error('Error saat inisialisasi aplikasi:', err);
   }
 }
 
