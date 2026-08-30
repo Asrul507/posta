@@ -1,3 +1,4 @@
+// public/js/api.js
 import { state } from './state.js';
 
 export async function api(endpoint, method = 'GET', body = null) {
@@ -34,6 +35,39 @@ export async function api(endpoint, method = 'GET', body = null) {
         console.error(`API Error on ${method} ${endpoint}:`, err);
         throw err;
     }
+}
+
+// =========================================================================
+// HELPER METHODS UNTUK MANAJEMEN STOK & PRODUK
+// =========================================================================
+
+/**
+ * Mengirim penyesuaian stok (Stock Opname / Koreksi)
+ * @param {string|number} productId 
+ * @param {number} diffQty (Positif untuk tambah, Negatif untuk kurang)
+ * @param {string} reason 
+ */
+export async function adjustStock(productId, diffQty, reason) {
+    return await api('/api/stock/adjust', 'POST', {
+        productId,
+        diffQty: Number(diffQty),
+        reason
+    });
+}
+
+/**
+ * Mengambil histori log audit mutasi stok berdasarkan Product ID
+ * @param {string|number} productId 
+ */
+export async function getStockHistory(productId) {
+    return await api(`/api/stock/history/${productId}`, 'GET');
+}
+
+/**
+ * Mengambil ringkasan seluruh riwayat mutasi stok
+ */
+export async function getAllStockLogs() {
+    return await api('/api/stock/logs', 'GET');
 }
 
 // Alias agar kompatibel ke semua kemungkinan pemanggilan
