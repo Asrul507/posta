@@ -1,53 +1,26 @@
-const COMPONENTS = [
-    { containerId: 'auth-container', file: 'components/login.html' },
-    { containerId: 'header-container', file: 'components/header.html' },
-    { containerId: 'sidebar-container', file: 'components/sidebar.html' },
-    { containerId: 'modals-container', file: 'components/modals.html' },
-    
-    // Sub-views utama
-    { containerId: 'content-container', file: 'components/view-pos.html', isView: true, viewId: 'view-pos' },
-    { containerId: 'content-container', file: 'components/view-admin.html', isView: true, viewId: 'view-admin' },
-    { containerId: 'content-container', file: 'components/view-products.html', isView: true, viewId: 'view-products' },
-    { containerId: 'content-container', file: 'components/view-reports.html', isView: true, viewId: 'view-reports' },
-    { containerId: 'content-container', file: 'components/view-history.html', isView: true, viewId: 'view-history' }
-];
-
 export async function loadComponents() {
-    for (const comp of COMPONENTS) {
-        try {
-            const response = await fetch(comp.file);
-            if (!response.ok) {
-                console.warn(`Gagal memuat komponen: ${comp.file} (${response.status})`);
-                continue;
-            }
-            const html = await response.text();
+  const components = [
+    { id: 'auth-container', url: 'components/login.html' },
+    { id: 'header-container', url: 'components/header.html' },
+    { id: 'sidebar-container', url: 'components/sidebar.html' },
+    { id: 'view-pos', url: 'components/view-pos.html' },
+    { id: 'view-products', url: 'components/view-products.html' },
+    { id: 'view-po', url: 'components/view-history.html' },
+    { id: 'view-reports', url: 'components/view-reports.html' },
+    { id: 'view-admin', url: 'components/view-admin.html' },
+    { id: 'modals-container', url: 'components/modals.html' }
+  ];
 
-            if (comp.isView) {
-                let viewWrapper = document.getElementById(comp.viewId);
-                if (!viewWrapper) {
-                    viewWrapper = document.createElement('div');
-                    viewWrapper.id = comp.viewId;
-                    viewWrapper.className = 'app-view hidden';
-                    
-                    const contentContainer = document.getElementById(comp.containerId);
-                    if (contentContainer) {
-                        contentContainer.appendChild(viewWrapper);
-                    }
-                }
-                viewWrapper.innerHTML = html;
-            } else {
-                const target = document.getElementById(comp.containerId);
-                if (target) {
-                    target.innerHTML = html;
-                }
-            }
-        } catch (err) {
-            console.error(`Error loading component ${comp.file}:`, err);
-        }
+  for (const comp of components) {
+    try {
+      const res = await fetch(comp.url);
+      if (res.ok) {
+        const html = await res.text();
+        const el = document.getElementById(comp.id);
+        if (el) el.innerHTML = html;
+      }
+    } catch (err) {
+      console.error(`Gagal memuat ${comp.url}:`, err);
     }
+  }
 }
-
-export const loadViews = loadComponents;
-export const initLoader = loadComponents;
-export const loadAllComponents = loadComponents;
-export default loadComponents;
