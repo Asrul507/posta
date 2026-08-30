@@ -4,57 +4,55 @@ import { state } from '../state.js';
 let cart = [];
 
 export async function initPOSView() {
-  console.log('Inisialisasi POS Kasir...');
-  renderCart();
+  console.log('Inisialisasi Kasir POS Dinamis...');
+  renderPOSCart();
   await loadPOSProducts();
   setupPOSEvents();
 }
 
 export async function loadPOSProducts() {
-  const container = document.getElementById('pos-product-grid') || document.getElementById('product-grid') || document.querySelector('.product-grid');
-  
+  const container = document.getElementById('pos-product-grid');
+  if (!container) return;
+
   try {
     const res = await api('/api/products', 'GET');
     const products = Array.isArray(res) ? res : (res.data || []);
     state.products = products;
-
-    if (!container) return;
-    renderProductsToGrid(container, products);
+    renderPOSGrid(products);
   } catch (err) {
-    console.error('Gagal memuat produk POS:', err);
-    if (container) {
-      container.innerHTML = '<div class="col-span-full text-center p-6 text-red-500">Gagal memuat katalog barang.</div>';
-    }
+    console.error('Gagal mengambil produk kasir:', err);
+    container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #ef4444;">Gagal memuat barang. Silakan refresh.</div>';
   }
 }
 
-function renderProductsToGrid(container, products) {
+function renderPOSGrid(products) {
+  const container = document.getElementById('pos-product-grid');
+  if (!container) return;
+
   if (!products || products.length === 0) {
-    container.innerHTML = '<div class="col-span-full text-center p-8 text-gray-400">Belum ada produk di toko ini.</div>';
+    container.innerHTML = '<div class="text-center" style="grid-column: 1/-1; padding: 2rem; color: #94a3b8;">Belum ada produk di toko ini.</div>';
     return;
   }
 
   container.innerHTML = products.map(p => `
-    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between" onclick="window.addToCart('${p.id}')">
+    <div class="product-card" onclick="window.addToPOSCart('${p.id}')">
       <div>
-        <h4 class="font-bold text-gray-800 line-clamp-2">${p.name}</h4>
-        <div class="text-blue-600 font-bold mt-1">Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</div>
+        <h4 style="font-size: 0.95rem; font-weight: 700; color: #1e293b; margin-bottom: 4px;">${p.name}</h4>
+        <div style="color: #2563eb; font-weight: 700; font-size: 0.9rem;">Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</div>
       </div>
-      <div class="mt-3 flex justify-between items-center text-xs">
-        <span class="${p.stock <= 0 ? 'text-red-500' : 'text-green-600'} font-semibold">
-          Stok: ${p.stock || 0}
-        </span>
-        <button class="px-2 py-1 bg-blue-50 text-blue-600 rounded font-bold hover:bg-blue-600 hover:text-white transition">+</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 0.75rem;">
+        <span style="color: ${p.stock <= 0 ? '#ef4444' : '#16a34a'}; font-weight: 600;">Stok: ${p.stock || 0}</span>
+        <button type="button" class="btn btn-sm btn-outline" style="padding: 2px 8px;">+ Tambah</button>
       </div>
     </div>
   `).join('');
 }
 
-window.addToCart = function(productId) {
+window.addToPOSCart = function(productId) {
   const product = (state.products || []).find(p => String(p.id) === String(productId));
   if (!product) return;
 
-  const existing = cart.find(item => String(item.id) === String(productId));
+  const existing = cart.find(i => String(i.id) === String(productId));
   if (existing) {
     existing.qty += 1;
   } else {
@@ -65,60 +63,62 @@ window.addToCart = function(productId) {
       qty: 1
     });
   }
-  renderCart();
+  renderPOSCart();
 };
 
-window.updateCartQty = function(productId, delta) {
-  const item = cart.find(item => String(item.id) === String(productId));
+window.updatePOSQty = function(productId, delta) {
+  const item = cart.find(i => String(i.id) === String(productId));
   if (!item) return;
 
   item.qty += delta;
   if (item.qty <= 0) {
     cart = cart.filter(i => String(i.id) !== String(productId));
   }
-  renderCart();
+  renderPOSCart();
 };
 
-function renderCart() {
-  const cartContainer = document.getElementById('cart-items') || document.getElementById('pos-cart-items');
-  const totalEl = document.getElementById('cart-total-amount') || document.getElementById('pos-total');
-  const payBtn = document.getElementById('btn-pay') || document.getElementById('btn-checkout');
+window.clearPOSCart = function() {
+  cart = [];
+  renderPOSCart();
+};
+
+function renderPOSCart() {
+  const container = document.getElementById('pos-cart-items');
+  const totalEl = document.getElementById('pos-total-amount');
+  const payBtn = document.getElementById('btn-checkout-pos');
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
   if (totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
   if (payBtn) payBtn.disabled = cart.length === 0;
 
-  if (!cartContainer) return;
+  if (!container) return;
 
   if (cart.length === 0) {
-    cartContainer.innerHTML = '<div class="text-center p-6 text-gray-400">Keranjang kosong</div>';
+    container.innerHTML = '<div class="text-center" style="padding: 2rem; color: #94a3b8;">Keranjang kosong</div>';
     return;
   }
 
-  cartContainer.innerHTML = cart.map(item => `
-    <div class="flex justify-between items-center p-2 border-b border-gray-100">
+  container.innerHTML = cart.map(item => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
       <div>
-        <div class="font-semibold text-sm text-gray-800">${item.name}</div>
-        <div class="text-xs text-gray-500">Rp ${item.price.toLocaleString('id-ID')} x ${item.qty}</div>
+        <div style="font-weight: 600; font-size: 0.85rem; color: #1e293b;">${item.name}</div>
+        <div style="font-size: 0.75rem; color: #64748b;">Rp ${item.price.toLocaleString('id-ID')} x ${item.qty}</div>
       </div>
-      <div class="flex items-center space-x-2">
-        <button class="w-6 h-6 bg-gray-100 rounded text-gray-700 hover:bg-gray-200" onclick="window.updateCartQty('${item.id}', -1)">-</button>
-        <span class="text-sm font-bold">${item.qty}</span>
-        <button class="w-6 h-6 bg-gray-100 rounded text-gray-700 hover:bg-gray-200" onclick="window.updateCartQty('${item.id}', 1)">+</button>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="window.updatePOSQty('${item.id}', -1)">-</button>
+        <span style="font-weight: 700; font-size: 0.85rem;">${item.qty}</span>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="window.updatePOSQty('${item.id}', 1)">+</button>
       </div>
     </div>
   `).join('');
 }
 
 window.handleCheckoutPOS = async function() {
-  if (cart.length === 0) {
-    alert('Keranjang belanja kosong!');
-    return;
-  }
+  if (cart.length === 0) return;
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const paymentMethod = document.getElementById('payment-method')?.value || 'CASH';
+  const paymentMethod = document.getElementById('pos-payment-method')?.value || 'CASH';
 
   try {
     const payload = {
@@ -129,21 +129,19 @@ window.handleCheckoutPOS = async function() {
 
     const res = await api('/api/checkout', 'POST', payload);
     if (res.success) {
-      alert('Transaksi berhasil disimpan!');
-      cart = [];
-      renderCart();
+      alert(`Transaksi Sukses! Total: Rp ${total.toLocaleString('id-ID')}`);
+      window.clearPOSCart();
       await loadPOSProducts();
-      if (window.closeModal) window.closeModal('modal-checkout');
     } else {
-      alert(res.error || 'Checkout gagal');
+      alert(res.error || 'Gagal memproses transaksi');
     }
   } catch (err) {
-    alert('Gagal memproses transaksi.');
+    alert('Terjadi kesalahan koneksi.');
   }
 };
 
 function setupPOSEvents() {
-  const searchInput = document.getElementById('search-product') || document.querySelector('input[type="search"]');
+  const searchInput = document.getElementById('pos-search-input');
   if (searchInput) {
     searchInput.oninput = (e) => {
       const q = e.target.value.toLowerCase();
@@ -151,12 +149,10 @@ function setupPOSEvents() {
         (p.name && p.name.toLowerCase().includes(q)) || 
         (p.sku && p.sku.toLowerCase().includes(q))
       );
-      const container = document.getElementById('pos-product-grid') || document.getElementById('product-grid') || document.querySelector('.product-grid');
-      if (container) renderProductsToGrid(container, matched);
+      renderPOSGrid(matched);
     };
   }
 }
 
 window.initPOSView = initPOSView;
 window.loadPOSProducts = loadPOSProducts;
-window.handleCheckoutPOS = handleCheckoutPOS;
