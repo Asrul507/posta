@@ -5,7 +5,7 @@ import { checkAuth } from './views/auth.js';
 import { initNavigation } from './navigation.js';
 
 // =========================================================================
-// MODAL CONTROLLER (MENGGUNAKAN CLASS .HIDDEN CSS POSTA)
+// MODAL & SIDEBAR CONTROLLER
 // =========================================================================
 window.openModal = function(modalId) {
   let modal = document.getElementById(modalId);
@@ -15,7 +15,7 @@ window.openModal = function(modalId) {
   if (modal) {
     modal.classList.remove('hidden');
   } else {
-    console.warn('Modal tidak ditemukan:', modalId);
+    console.warn('Modal target tidak ditemukan:', modalId);
   }
 };
 
@@ -30,7 +30,7 @@ window.closeModal = function(modalId) {
 };
 
 window.toggleSidebar = function(forceState) {
-  const sidebar = document.querySelector('.sidebar, .app-sidebar, aside') || document.getElementById('sidebar-root');
+  const sidebar = document.getElementById('sidebar-root') || document.querySelector('.sidebar');
   if (!sidebar) return;
 
   if (typeof forceState === 'boolean') {
@@ -41,7 +41,7 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// INISIALISASI UTAMA APLIKASI
+// INISIALISASI UTAMA
 // =========================================================================
 async function initApp() {
   console.log('Posta POS Initializing...');
@@ -49,32 +49,36 @@ async function initApp() {
   // 1. Muat komponen HTML
   await loadComponents();
 
-  // 2. Ambil data tenant
+  // 2. Ambil informasi toko
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
       state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.warn('Gagal memuat tenant info:', err);
+    console.warn('Tenant info load:', err);
   }
 
-  // 3. Autentikasi
+  // 3. Autentikasi sesi
   checkAuth();
 
-  // 4. Inisialisasi navigasi
+  // 4. Jalankan Navigasi
   initNavigation();
 
-  // 5. Daftarkan event tombol header & shift
+  // 5. Setup tombol
   setupGlobalEvents();
 }
 
 function setupGlobalEvents() {
-  const menuBtns = document.querySelectorAll('.header-menu-btn, .btn-menu-toggle');
-  menuBtns.forEach(btn => {
-    btn.onclick = () => window.toggleSidebar();
+  // Tombol menu sidebar
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.header-menu-btn, .btn-menu-toggle, [onclick*="toggleSidebar"]')) {
+      e.preventDefault();
+      window.toggleSidebar();
+    }
   });
 
+  // Tombol Shift
   const shiftBtn = document.getElementById('btn-shift-status') || document.querySelector('.btn-shift');
   if (shiftBtn) {
     shiftBtn.onclick = () => window.openModal('modal-shift');
