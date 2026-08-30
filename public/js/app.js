@@ -6,14 +6,12 @@ import { checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js
 
 async function bootstrap() {
   try {
-    // 1. Muat template komponen HTML
+    // 1. Muat komponen UI HTML
     await loadComponents();
 
     // 2. Inisialisasi autentikasi & event listener navigasi
     initAuth();
-    if (typeof initNavigation === 'function') {
-      initNavigation();
-    }
+    initNavigation();
 
     // 3. Periksa token tersimpan di LocalStorage
     const savedToken = localStorage.getItem('posta_token');
@@ -31,11 +29,14 @@ async function bootstrap() {
         headerUser.textContent = `${state.user.name} (${state.user.role})`;
       }
 
-      // Arahkan ke halaman sesuai Role
+      // Sembunyikan menu admin di sidebar jika kasir biasa yang login
+      const adminNavItems = document.querySelectorAll('.nav-admin-only');
       if (state.user.role === 'CASHIER') {
+        adminNavItems.forEach(el => el.classList.add('hidden'));
         navigateTo('pos');
         await checkAndRestoreShift();
       } else {
+        adminNavItems.forEach(el => el.classList.remove('hidden'));
         // ADMIN, OWNER, SUPERADMIN langsung ke Dashboard Admin
         navigateTo('admin');
         updateHeaderShiftStatus(null);
