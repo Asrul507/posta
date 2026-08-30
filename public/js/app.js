@@ -5,7 +5,7 @@ import { checkAuth } from './views/auth.js';
 import { initNavigation } from './navigation.js';
 
 // =========================================================================
-// MODAL CONTROLLER
+// MODAL CONTROLLER GLOBAL
 // =========================================================================
 window.openModal = function(modalId) {
   let modal = document.getElementById(modalId);
@@ -14,12 +14,9 @@ window.openModal = function(modalId) {
 
   if (modal) {
     modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-    modal.style.pointerEvents = 'auto';
-
-    // Buka akses pointer pada kontainer root modal
-    const modalsRoot = document.getElementById('modals-root');
-    if (modalsRoot) modalsRoot.style.pointerEvents = 'auto';
+    // Jika modal berada di dalam backdrop container
+    const backdrop = modal.closest('.modal-backdrop') || modal;
+    backdrop.classList.remove('hidden');
   } else {
     console.warn('Modal tidak ditemukan:', modalId);
   }
@@ -32,18 +29,14 @@ window.closeModal = function(modalId) {
 
   if (modal) {
     modal.classList.add('hidden');
-    modal.style.display = 'none';
-    modal.style.pointerEvents = 'none';
-
-    // Kunci kembali akses pointer jika semua modal sudah tertutup
-    const openModals = document.querySelectorAll('.modal-backdrop:not(.hidden)');
-    if (openModals.length === 0) {
-      const modalsRoot = document.getElementById('modals-root');
-      if (modalsRoot) modalsRoot.style.pointerEvents = 'none';
-    }
+    const backdrop = modal.closest('.modal-backdrop') || modal;
+    backdrop.classList.add('hidden');
   }
 };
 
+// =========================================================================
+// SIDEBAR DRAWER CONTROLLER
+// =========================================================================
 window.toggleSidebar = function(forceState) {
   const sidebar = document.getElementById('sidebar-root');
   if (!sidebar) return;
@@ -56,42 +49,44 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// INISIALISASI UTAMA
+// INISIALISASI UTAMA APLIKASI
 // =========================================================================
 async function initApp() {
-  console.log('Posta POS Initializing...');
+  console.log('Posta POS App Initializing...');
 
-  // 1. Muat template partial HTML
+  // 1. Muat template komponen HTML
   await loadComponents();
 
-  // 2. Ambil informasi toko
+  // 2. Ambil informasi toko / tenant
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
       state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.warn('Gagal memuat info tenant:', err);
+    console.warn('Gagal memuat tenant info:', err);
   }
 
-  // 3. Autentikasi
+  // 3. Autentikasi sesi
   checkAuth();
 
-  // 4. Inisialisasi navigasi
+  // 4. Jalankan Navigasi
   initNavigation();
 
-  // 5. Daftarkan event tombol
+  // 5. Setup tombol global
   setupGlobalEvents();
 }
 
 function setupGlobalEvents() {
+  // Tombol buka/tutup menu sidebar
   document.addEventListener('click', (e) => {
-    if (e.target.closest('.header-menu-btn, .btn-menu-toggle, [onclick*="toggleSidebar"]')) {
+    if (e.target.closest('.header-menu-btn, .btn-menu-toggle, .sidebar-close-btn, [onclick*="toggleSidebar"]')) {
       e.preventDefault();
       window.toggleSidebar();
     }
   });
 
+  // Tombol Shift
   const shiftBtn = document.getElementById('btn-shift-status') || document.querySelector('.btn-shift');
   if (shiftBtn) {
     shiftBtn.onclick = () => window.openModal('modal-shift');
