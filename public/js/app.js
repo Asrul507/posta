@@ -5,33 +5,14 @@ import { initNavigation, navigateTo } from './navigation.js';
 import { initPOSView } from './views/pos.js';
 
 // =========================================================================
-// GLOBAL SIDEBAR CONTROLLER
-// =========================================================================
-window.toggleSidebar = function(forceState) {
-  const sidebar = document.querySelector('.sidebar, .app-sidebar, aside') || document.getElementById('sidebar') || document.getElementById('sidebar-root');
-  if (!sidebar) return;
-
-  if (typeof forceState === 'boolean') {
-    if (forceState) {
-      sidebar.classList.add('active', 'open');
-      sidebar.style.display = 'block';
-    } else {
-      sidebar.classList.remove('active', 'open');
-    }
-  } else {
-    sidebar.classList.toggle('active');
-    sidebar.classList.toggle('open');
-  }
-};
-
-// =========================================================================
-// GLOBAL MODAL CONTROLLERS
+// GLOBAL CONTROLLERS (MODAL & SIDEBAR)
 // =========================================================================
 window.openModal = function(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
+    modal.style.zIndex = '9999';
   }
 };
 
@@ -43,33 +24,41 @@ window.closeModal = function(modalId) {
   }
 };
 
+window.toggleSidebar = function(forceState) {
+  const sidebar = document.querySelector('.sidebar, .app-sidebar, aside') || document.getElementById('sidebar-container');
+  if (!sidebar) return;
+
+  if (typeof forceState === 'boolean') {
+    sidebar.classList.toggle('active', forceState);
+  } else {
+    sidebar.classList.toggle('active');
+  }
+};
+
 // =========================================================================
-// INISIALISASI APLIKASI
+// INISIALISASI UTAMA
 // =========================================================================
 async function initApp() {
   console.log('Posta POS App Initializing...');
 
-  // 1. Muat SEMUA komponen partial HTML
+  // 1. Muat template komponen HTML
   await loadComponents();
 
-  // 2. Ambil data tenant
+  // 2. Ambil informasi tenant dari server
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
       state.tenant = tenantInfo.data;
     }
   } catch (err) {
-    console.warn('Gagal memuat info tenant:', err);
+    console.warn('Gagal memuat tenant info:', err);
   }
 
-  // 3. Inisialisasi navigasi & tampilkan view POS
+  // 3. Jalankan navigasi (akan otomatis membuka Superadmin di posta.gpro.my.id)
   initNavigation();
-
-  // 4. Inisialisasi data & event POS
-  await initPOSView();
 }
 
-// Jalankan aplikasi saat dokumen siap
+// Jalankan ketika dokumen siap
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initApp);
 } else {
