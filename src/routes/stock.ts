@@ -1,60 +1,83 @@
-import { Env } from "../types";
+// src/routes/stock.ts
+import { Hono } from 'hono';
+import { recordStockMovement } from '../services/inventory';
 
-export async function handleStockAdjust(request: Request, env: Env): Promise<Response> {
+type Bindings = {
+  DB: D1Database;
+};
+
+export const stockRoute = new Hono<{ Bindings: Bindings }>();
+
+// 1. Endpoint Penyesuaian Stok Manual / Stock Opname
+stockRoute.post('/adjust', async (c) => {
   try {
-    const payload: {
-      tenant_id: string;
-      product_id: string;
-      type: "IN" | "OUT";
-      qty: number;
-      notes?: string;
-    } = await request.json();
+    const body = await c.req.json();
+    const { productId, diffQty, reason } = body;
 
-    const { tenant_id, product_id, type, qty, notes } = payload;
-
-    const product: any = await env.DB.prepare("SELECT stock FROM products WHERE id = ? AND tenant_id = ?")
-      .bind(product_id, tenant_id || "toko_demo_01")
-      .first();
-
-    if (!product) {
-      return Response.json({ success: false, error: "Produk tidak ditemukan" }, { status: 404 });
+    if (productId === undefined || diffQty === undefined) {
+      return c.json({ error: 'productId dan diffQty wajib diisi' }, 400);
     }
 
-    const currentStock = product.stock;
-    const change = type === "IN" ? Math.abs(qty) : -Math.abs(qty);
-    const finalStock = currentStock + change;
+    const result = await recordStockMovement(c.env.DB, {
+      productId,
+      qtyChange: Number(diffQty),
+      type: 'ADJUSTMENT',
+      notes: reason || 'Koreksi stok manual / opname'
+    });
 
-    if (finalStock < 0) {
-      return Response.json({ success: false, error: "Stok tidak boleh bernilai negatif" }, { status: 400 });
-    }
-
-    const movementId = "sm_" + Date.now();
-    const statements = [
-      env.DB.prepare("UPDATE products SET stock = ? WHERE id = ? AND tenant_id = ?")
-        .bind(finalStock, product_id, tenant_id || "toko_demo_01"),
-      env.DB.prepare(`
-        INSERT INTO stock_movements (id, tenant_id, product_id, type, qty_change, stock_before, stock_after, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        movementId,
-        tenant_id || "toko_demo_01",
-        product_id,
-        type,
-        change,
-        currentStock,
-        finalStock,
-        notes || "Penyesuaian Manual"
-      )
-    ];
-
-    await env.DB.batch(statements);
-
-    return Response.json({
+    return c.json({
       success: true,
-      message: "Stok berhasil disesuaikan",
-      stock_after: finalStock
+      message: 'Penyesuaian stok berhasil disimpan',
+      data: result
     });
   } catch (err: any) {
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    return c.json({ error: err.message || 'Gagal menyesuaikan stok' }, 500);
   }
-}
+});
+
+// 2. Ambil riwayat audit log stok berdasarkan Product ID
+stockRoute.get('/history/:productId', async (c) => {
+  try {
+    const productId = c.req.param('productId');
+
+    const logs = await c.env.DB
+      .prepare(`
+        SELECT id, product_id, qty_change, previous_stock, current_stock, type, reference_id, notes, created_at
+        FROM stock_logs
+        WHERE product_id = ?
+        ORDER BY created_at DESC
+        LIMIT 100
+      `)
+      .bind(productId)
+      .all();
+
+    return c.json({
+      success: true,
+      data: logs.results
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Gagal mengambil log stok' }, 500);
+  }
+});
+
+// 3. Ambil ringkasan seluruh pergerakan stok terbaru
+stockRoute.get('/logs', async (c) => {
+  try {
+    const logs = await c.env.DB
+      .prepare(`
+        SELECT sl.*, p.name as product_name, p.sku
+        FROM stock_logs sl
+        LEFT JOIN products p ON sl.product_id = p.id
+        ORDER BY sl.created_at DESC
+        LIMIT 50
+      `)
+      .all();
+
+    return c.json({
+      success: true,
+      data: logs.results
+    });
+  } catch (err: any) {
+    return c.json({ error: err.message || 'Gagal mengambil log stok' }, 500);
+  }
+});
