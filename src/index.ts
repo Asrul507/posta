@@ -1,4 +1,3 @@
-// src/index.ts
 import { Hono } from 'hono';
 import { checkoutRoute } from './routes/checkout';
 import { poRoute } from './routes/po';
@@ -16,9 +15,6 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 const JWT_SECRET = "posta-secure-jwt-secret-key-2026";
 
-// =========================================================================
-// HELPER FUNCTIONS
-// =========================================================================
 async function hashPassword(password: string, salt: string): Promise<string> {
   const enc = new TextEncoder();
   const data = enc.encode(password + salt);
@@ -61,9 +57,9 @@ function extractSubdomain(hostname: string): string {
   return "posta";
 }
 
-// =========================================================================
-// AUTH & TENANT ROUTES
-// =========================================================================
+// -------------------------------------------------------------------------
+// AUTHENTICATION LOGIN
+// -------------------------------------------------------------------------
 app.post('/api/auth/login', async (c) => {
   try {
     const { username, password } = await c.req.json();
@@ -137,6 +133,9 @@ app.post('/api/auth/login', async (c) => {
   }
 });
 
+// -------------------------------------------------------------------------
+// TENANT INFO
+// -------------------------------------------------------------------------
 app.get('/api/tenant/info', async (c) => {
   try {
     const currentSubdomain = extractSubdomain(new URL(c.req.url).hostname);
@@ -162,9 +161,9 @@ app.get('/api/tenant/info', async (c) => {
   }
 });
 
-// =========================================================================
-// ADMIN ROUTES (TENANTS, USERS, IMPERSONATION)
-// =========================================================================
+// -------------------------------------------------------------------------
+// ADMIN ROUTES (TENANTS, USERS, IMPERSONATE)
+// -------------------------------------------------------------------------
 app.get('/api/admin/tenants', async (c) => {
   try {
     const query = `
@@ -320,9 +319,9 @@ app.get('/api/admin/impersonate', async (c) => {
   }
 });
 
-// =========================================================================
-// REGISTER MODULAR SUB-ROUTES
-// =========================================================================
+// -------------------------------------------------------------------------
+// DAFTARKAN SUB-ROUTES
+// -------------------------------------------------------------------------
 app.route('/api/checkout', checkoutRoute);
 app.route('/api/po', poRoute);
 app.route('/api/stock', stockRoute);
@@ -330,7 +329,7 @@ app.route('/api/products', productsRoute);
 app.route('/api/reports', reportsRoute);
 app.route('/api/shifts', shiftsRoute);
 
-// Fallback untuk melayani frontend static assets (HTML/CSS/JS dari folder public/)
+// Fallback untuk file statis frontend (HTML, CSS, JS di folder public)
 app.all('*', (c) => {
   return c.env.ASSETS.fetch(c.req.raw);
 });
