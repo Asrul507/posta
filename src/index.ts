@@ -11,6 +11,7 @@ import {
 } from "./routes/reports";
 import { 
   handleGetCurrentShift, 
+  handleGetShiftsSummaryToday,
   handleOpenShift, 
   handleCloseShift 
 } from "./routes/shifts";
@@ -345,10 +346,13 @@ export default {
     }
 
     // -------------------------------------------------------------------------
-    // API SHIFTS KASIR
+    // API SHIFTS KASIR & DASHBOARD ADMIN
     // -------------------------------------------------------------------------
     if (url.pathname === "/api/shifts/current" && request.method === "GET") {
       return handleGetCurrentShift(request, env);
+    }
+    if (url.pathname === "/api/shifts/summary-today" && request.method === "GET") {
+      return handleGetShiftsSummaryToday(request, env);
     }
     if (url.pathname === "/api/shifts/open" && request.method === "POST") {
       return handleOpenShift(request, env);
