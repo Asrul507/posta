@@ -1,44 +1,22 @@
 import { state } from './state.js';
 import { api } from './api.js';
-import { loadComponents } from './loader.js';
-import { checkAuth } from './views/auth.js';
-import { initNavigation } from './navigation.js';
+import { initAdminView } from './views/admin.js';
+import { initPOSView } from './views/pos.js';
 
 // =========================================================================
-// MODAL CONTROLLER (MENGIZINKAN KLIK HANYA SAAT DIBUKA)
+// MODAL CONTROLLER
 // =========================================================================
 window.openModal = function(modalId) {
-  let modal = document.getElementById(modalId);
-  if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
-  if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
-
+  const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.remove('hidden');
-    modal.style.pointerEvents = 'auto';
-
-    // Buka akses pointer root container
-    const modalsRoot = document.getElementById('modals-root');
-    if (modalsRoot) modalsRoot.style.pointerEvents = 'auto';
-  } else {
-    console.warn('Modal tidak ditemukan:', modalId);
   }
 };
 
 window.closeModal = function(modalId) {
-  let modal = document.getElementById(modalId);
-  if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
-  if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
-
+  const modal = document.getElementById(modalId);
   if (modal) {
     modal.classList.add('hidden');
-    modal.style.pointerEvents = 'none';
-
-    // Kunci kembali akses pointer jika seluruh modal tertutup
-    const activeModals = document.querySelectorAll('.modal-backdrop:not(.hidden)');
-    if (activeModals.length === 0) {
-      const modalsRoot = document.getElementById('modals-root');
-      if (modalsRoot) modalsRoot.style.pointerEvents = 'none';
-    }
   }
 };
 
@@ -46,7 +24,7 @@ window.closeModal = function(modalId) {
 // SIDEBAR DRAWER CONTROLLER
 // =========================================================================
 window.toggleSidebar = function(forceState) {
-  const sidebar = document.getElementById('sidebar-root');
+  const sidebar = document.getElementById('sidebar-drawer');
   if (!sidebar) return;
 
   if (typeof forceState === 'boolean') {
@@ -57,47 +35,44 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// INISIALISASI UTAMA
+// NAVIGASI SPA
+// =========================================================================
+window.navigateTo = function(viewName) {
+  document.querySelectorAll('.app-view').forEach(v => v.classList.add('hidden'));
+  const target = document.getElementById(`view-${viewName}`);
+  if (target) {
+    target.classList.remove('hidden');
+  }
+
+  window.toggleSidebar(false);
+
+  if (viewName === 'admin') initAdminView();
+  else if (viewName === 'pos') initPOSView();
+  else if (viewName === 'products' && window.loadAdminProducts) window.loadAdminProducts();
+};
+
+// =========================================================================
+// INIT UTAMA
 // =========================================================================
 async function initApp() {
   console.log('Posta POS App Initializing...');
 
-  // 1. Muat komponen HTML
-  await loadComponents();
-
-  // 2. Ambil informasi toko
-  try {
-    const tenantInfo = await api('/api/tenant/info', 'GET');
-    if (tenantInfo && tenantInfo.data) {
-      state.tenant = tenantInfo.data;
-    }
-  } catch (err) {
-    console.warn('Tenant info load:', err);
-  }
-
-  // 3. Cek login
-  checkAuth();
-
-  // 4. Jalankan Navigasi
-  initNavigation();
-
-  // 5. Daftarkan event tombol
-  setupGlobalEvents();
-}
-
-function setupGlobalEvents() {
-  // Tombol menu sidebar
+  // Event listener tombol navigasi
   document.addEventListener('click', (e) => {
-    if (e.target.closest('.header-menu-btn, .btn-menu-toggle, .sidebar-close-btn, [onclick*="toggleSidebar"]')) {
+    const navBtn = e.target.closest('[data-view]');
+    if (navBtn) {
       e.preventDefault();
-      window.toggleSidebar();
+      const target = navBtn.getAttribute('data-view');
+      if (target) window.navigateTo(target);
     }
   });
 
-  // Tombol Shift
-  const shiftBtn = document.getElementById('btn-shift-status') || document.querySelector('.btn-shift');
-  if (shiftBtn) {
-    shiftBtn.onclick = () => window.openModal('modal-shift');
+  // Tentukan view default
+  const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+  if (isSuperDomain) {
+    window.navigateTo('admin');
+  } else {
+    window.navigateTo('pos');
   }
 }
 
