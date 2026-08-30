@@ -2,7 +2,7 @@ import { adjustStock, getStockHistory, api } from '../api.js';
 import { state } from '../state.js';
 
 export async function initAdminView() {
-  console.log('Memuat Dashboard Admin / Developer...');
+  console.log('Memuat Admin / Developer View...');
   await loadAdminDashboardData();
 }
 
@@ -23,7 +23,7 @@ export async function loadAdminDashboardData() {
       await loadAdminProducts();
     }
   } catch (err) {
-    console.error('Gagal load dashboard admin:', err);
+    console.error('Gagal memuat dashboard admin:', err);
   }
 }
 
@@ -45,7 +45,7 @@ export async function loadTenantsList() {
     tbody.innerHTML = tenants.map(t => `
       <tr>
         <td><strong>${t.name}</strong></td>
-        <td><a href="https://${t.subdomain}.gpro.my.id" target="_blank" style="color: #2563eb; text-decoration: underline;">${t.subdomain}.gpro.my.id</a></td>
+        <td><a href="https://${t.subdomain}.gpro.my.id" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: underline;">${t.subdomain}.gpro.my.id</a></td>
         <td>${t.total_products || 0} Produk</td>
         <td>${t.total_transactions || 0} Transaksi</td>
         <td class="text-right">
@@ -56,7 +56,7 @@ export async function loadTenantsList() {
       </tr>
     `).join('');
   } catch (err) {
-    console.error('Gagal memuat tenant:', err);
+    console.error('Gagal mengambil data tenant:', err);
   }
 }
 
@@ -81,7 +81,7 @@ export async function loadAdminUsersList() {
       </tr>
     `).join('');
   } catch (err) {
-    console.error('Gagal memuat users:', err);
+    console.error('Gagal mengambil data users:', err);
   }
 }
 
@@ -97,10 +97,7 @@ window.handleTenantSubmit = async function(event) {
     const res = await api('/api/admin/tenants', 'POST', { name, subdomain, address, phone });
     if (res.success) {
       alert(`Toko '${name}' berhasil dibuat!`);
-      if (window.closeModal) {
-        window.closeModal('modal-tenant');
-        window.closeModal('modal-create-tenant');
-      }
+      if (window.closeModal) window.closeModal('modal-tenant');
       await loadTenantsList();
     } else {
       alert(res.error || 'Gagal membuat toko');
@@ -124,10 +121,7 @@ window.handleUserSubmit = async function(event) {
     const res = await api('/api/admin/users', 'POST', { name, username, password, role, tenant_id });
     if (res.success) {
       alert(`User '${name}' (${role}) berhasil dibuat!`);
-      if (window.closeModal) {
-        window.closeModal('modal-user');
-        window.closeModal('modal-create-user');
-      }
+      if (window.closeModal) window.closeModal('modal-user');
       await loadAdminUsersList();
     } else {
       alert(res.error || 'Gagal membuat user');
