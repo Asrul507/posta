@@ -1,5 +1,6 @@
 import { Env } from "../types";
 
+
 export async function handleCheckout(request: Request, env: Env): Promise<Response> {
   try {
     const payload: {
