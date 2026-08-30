@@ -1,9 +1,22 @@
 import { Hono } from 'hono';
 import { recordStockMovement } from '../services/inventory';
 
-type Bindings = {
-  DB: D1Database;
-};
+
+export async function handleCheckout(request: Request, env: Env): Promise<Response> {
+  try {
+    const payload: {
+      tenant_id?: string;
+      items: Array<{
+        id: string;
+        name: string;
+        cost_price?: number;
+        price: number;
+        qty: number;
+      }>;
+      payment_method?: string;
+      paid_amount: number;
+      cashier_name?: string;
+    } = await request.json();
 
 export const checkoutRoute = new Hono<{ Bindings: Bindings }>();
 
