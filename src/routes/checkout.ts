@@ -1,4 +1,3 @@
-// src/routes/checkout.ts
 import { Hono } from 'hono';
 import { recordStockMovement } from '../services/inventory';
 
@@ -11,51 +10,65 @@ export const checkoutRoute = new Hono<{ Bindings: Bindings }>();
 checkoutRoute.post('/', async (c) => {
   try {
     const body = await c.req.json();
-    const { items, totalAmount, paymentMethod, shiftId, notes } = body;
+    const { items, totalAmount, paymentMethod, shiftId, notes, customerName } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return c.json({ error: 'Item belanja tidak boleh kosong' }, 400);
+      return c.json({ success: false, error: 'Item belanja tidak boleh kosong' }, 400);
     }
 
-    // 1. Simpan header transaksi order
+    // 1. Simpan Header Transaksi
     const orderInsert = await c.env.DB
       .prepare(`
-        INSERT INTO orders (total_amount, payment_method, shift_id, notes, created_at)
-        VALUES (?, ?, ?, ?, datetime('now'))
+        INSERT INTO transactions (total_amount, payment_method, shift_id, customer_name, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
         RETURNING id
       `)
-      .bind(totalAmount, paymentMethod, shiftId || null, notes || null)
-      .first<{ id: number }>();
+      .bind(
+        totalAmount,
+        paymentMethod || 'CASH',
+        shiftId || null,
+        customerName || 'Pelanggan Umum',
+        notes || null
+      )
+      .first<{ id: number | string }>();
 
-    const orderId = orderInsert?.id;
+    const transactionId = orderInsert?.id;
 
-    // 2. Simpan order items dan potong stok secara terpusat
+    // 2. Simpan Item Detail & Potong Stok Otomatis
     for (const item of items) {
-      // Simpan item pesanan
+      const productId = item.productId || item.id;
+      const qty = Number(item.quantity || item.qty || 1);
+      const price = Number(item.price || 0);
+      const subtotal = Number(item.subtotal || (price * qty));
+
+      // Simpan rincian item transaksi
       await c.env.DB
         .prepare(`
-          INSERT INTO order_items (order_id, product_id, quantity, price, subtotal)
+          INSERT INTO transaction_items (transaction_id, product_id, quantity, price, subtotal)
           VALUES (?, ?, ?, ?, ?)
         `)
-        .bind(orderId, item.productId, item.quantity, item.price, item.subtotal || (item.price * item.quantity))
+        .bind(transactionId, productId, qty, price, subtotal)
         .run();
 
       // Mutasi stok keluar (SALE)
       await recordStockMovement(c.env.DB, {
-        productId: item.productId,
-        qtyChange: -Math.abs(item.quantity), // Pengurangan stok
+        productId: productId,
+        qtyChange: -Math.abs(qty),
         type: 'SALE',
-        referenceId: orderId,
-        notes: `Penjualan Kasir Order #${orderId}`
+        referenceId: transactionId,
+        notes: `Penjualan Kasir #${transactionId}`
       });
     }
 
     return c.json({
       success: true,
-      message: 'Transaksi checkout berhasil',
-      orderId
+      message: 'Transaksi berhasil disimpan',
+      transactionId
     });
   } catch (err: any) {
-    return c.json({ error: err.message || 'Gagal memproses checkout' }, 500);
+    console.error('Checkout error:', err);
+    return c.json({ success: false, error: err.message || 'Gagal memproses transaksi' }, 500);
   }
 });
+
+export default checkoutRoute;
