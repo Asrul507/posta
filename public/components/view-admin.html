@@ -1,24 +1,24 @@
 <div class="view-container">
-  <!-- 1. PANEL SUPERADMIN / DEVELOPER DASHBOARD (Hanya tampil di posta.gpro.my.id) -->
+  <!-- 1. DEVELOPER / SUPERADMIN PANEL (Khusus di posta.gpro.my.id) -->
   <div id="panel-developer-superadmin" style="display: none;">
     <div class="view-header">
       <div>
-        <h2>Developer & Multi-Store Dashboard</h2>
-        <p class="subtitle">Kelola subdomain toko, database multi-tenant, dan pengguna sistem</p>
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">Developer & Multi-Store Dashboard</h2>
+        <p class="subtitle" style="color: #64748b; font-size: 0.875rem; margin-top: 4px;">Kelola subdomain toko, database multi-tenant, dan pengguna sistem</p>
       </div>
-      <div class="view-actions">
-        <button class="btn btn-primary" onclick="window.openModal ? window.openModal('modal-create-tenant') : null">
+      <div class="view-actions" style="display: flex; gap: 8px;">
+        <button class="btn btn-primary" onclick="window.openModal('modal-tenant')">
           + Buat Toko Baru
         </button>
-        <button class="btn btn-outline" onclick="window.openModal ? window.openModal('modal-create-user') : null">
+        <button class="btn btn-secondary" onclick="window.openModal('modal-user')">
           + Buat User
         </button>
       </div>
     </div>
 
     <!-- Tabel Daftar Toko -->
-    <div class="card" style="margin-bottom: 2rem;">
-      <h3 style="margin-bottom: 1rem;">Daftar Toko Terdaftar</h3>
+    <div class="card" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+      <h3 style="font-weight: 600; margin-bottom: 1rem; color: #334155;">Daftar Toko Terdaftar</h3>
       <div class="table-container">
         <table class="data-table">
           <thead>
@@ -31,7 +31,7 @@
             </tr>
           </thead>
           <tbody id="tenants-table-body">
-            <!-- Diisi otomatis -->
+            <!-- Diisi oleh JS -->
           </tbody>
         </table>
       </div>
@@ -39,7 +39,7 @@
 
     <!-- Tabel Daftar User Global -->
     <div class="card">
-      <h3 style="margin-bottom: 1rem;">Daftar User & Akses</h3>
+      <h3 style="font-weight: 600; margin-bottom: 1rem; color: #334155;">Daftar User & Akses</h3>
       <div class="table-container">
         <table class="data-table">
           <thead>
@@ -51,42 +51,42 @@
             </tr>
           </thead>
           <tbody id="admin-users-table-body">
-            <!-- Diisi otomatis -->
+            <!-- Diisi oleh JS -->
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- 2. PANEL ADMIN TOKO REGULER (Tampil di namatoko.gpro.my.id) -->
+  <!-- 2. ADMIN TOKO REGULER PANEL (Khusus di subdomain namatoko.gpro.my.id) -->
   <div id="panel-store-admin">
     <div class="view-header">
       <div>
-        <h2>Manajemen Produk & Inventaris Toko</h2>
-        <p class="subtitle">Kelola katalog barang dan stok opname khusus toko ini</p>
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">Manajemen Produk & Inventaris Toko</h2>
+        <p class="subtitle" style="color: #64748b; font-size: 0.875rem; margin-top: 4px;">Kelola katalog barang dan stok opname khusus toko ini</p>
       </div>
       <div class="view-actions">
-        <button class="btn btn-primary" onclick="window.openModal ? window.openModal('modal-product') : null">
+        <button class="btn btn-primary" onclick="window.openModal('modal-product')">
           + Tambah Produk
         </button>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-top: 1.5rem;">
       <div class="table-container">
         <table class="data-table">
           <thead>
             <tr>
               <th>SKU</th>
               <th>Nama Produk</th>
-              <th>Harga Pokok</th>
+              <th>Harga Modal</th>
               <th>Harga Jual</th>
               <th>Stok</th>
               <th class="text-right">Aksi</th>
             </tr>
           </thead>
           <tbody id="product-table-body">
-            <!-- Diisi otomatis -->
+            <!-- Diisi oleh JS -->
           </tbody>
         </table>
       </div>
