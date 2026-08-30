@@ -1,294 +1,186 @@
-import { state, formatRupiah, showToast } from '../state.js';
 import { api } from '../api.js';
+import { state } from '../state.js';
 
-// =========================================================================
-// 1. MUAT PRODUK TOKO
-// =========================================================================
-export async function loadProducts() {
-  const grid = document.getElementById('product-grid');
+let cart = [];
+let currentCategory = 'all';
+
+export async function initPOSView() {
+  console.log('Inisialisasi POS View...');
+  cart = [];
+  renderCart();
+  await loadPOSProducts();
+  setupPOSEvents();
+}
+
+export async function loadPOSProducts() {
+  const container = document.getElementById('pos-product-grid') || document.getElementById('product-grid') || document.querySelector('.product-grid');
+  
   try {
-    const qs = state.tenantId ? `?tenant_id=${encodeURIComponent(state.tenantId)}` : '';
-    const result = await api(`/api/products${qs}`, 'GET');
+    const res = await api('/api/products', 'GET');
+    const products = Array.isArray(res) ? res : (res.data || []);
+    state.products = products;
 
-    if (result && result.success && result.data && result.data.length > 0) {
-      state.products = result.data;
-      renderCategories();
-      renderProductGrid();
-      renderProductTable();
-      setupPODatalist();
-    } else {
-      state.products = [];
-      if (grid) {
-        grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-500 text-sm">Belum ada produk aktif di toko ini.</div>`;
+    if (!container) {
+      // Jika grid belum ketemu, coba cari kontainer dengan teks loading
+      const loadingEl = Array.from(document.querySelectorAll('div, p')).find(el => el.textContent.includes('Memuat katalog barang'));
+      if (loadingEl && loadingEl.parentElement) {
+        renderProductsToElement(loadingEl.parentElement, products);
       }
-      renderProductTable();
+      return;
     }
+
+    renderProductsToElement(container, products);
   } catch (err) {
-    console.error('Gagal memuat produk:', err);
-    if (grid) {
-      grid.innerHTML = `<div class="col-span-full py-12 text-center text-rose-500 text-sm font-medium">Gagal memuat katalog barang.</div>`;
+    console.error('Gagal memuat produk POS:', err);
+    if (container) {
+      container.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">Gagal memuat katalog barang. Silakan refresh.</div>';
     }
   }
 }
 
-// Dipanggil saat tab 'Master Produk' dibuka
-export function loadMasterProducts() {
-  if (!state.products || state.products.length === 0) {
-    loadProducts();
-  } else {
-    renderProductTable();
-  }
-}
-
-// =========================================================================
-// 2. KATEGORI PRODUK
-// =========================================================================
-export function renderCategories() {
-  const container = document.getElementById('category-container');
-  if (!container) return;
-
-  const categories = ['ALL', ...new Set(state.products.map(p => p.category_name).filter(Boolean))];
-  container.innerHTML = categories.map(cat => `
-    <button onclick="window.filterCategory('${cat}')" 
-      class="cat-btn px-3 py-1.5 rounded-lg text-xs font-semibold ${state.selectedCategory === cat ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} shrink-0 transition">
-      ${cat === 'ALL' ? 'Semua' : cat}
-    </button>
-  `).join('');
-}
-
-export function filterCategory(cat) {
-  state.selectedCategory = cat;
-  renderCategories();
-  renderProductGrid();
-}
-
-// =========================================================================
-// 3. GRID KATALOG KASIR
-// =========================================================================
-export function renderProductGrid() {
-  const grid = document.getElementById('product-grid');
-  if (!grid) return;
-
-  const keyword = (document.getElementById('search-input')?.value || '').toLowerCase();
-  const filtered = (state.products || []).filter(p => {
-    const matchCat = state.selectedCategory === 'ALL' || p.category_name === state.selectedCategory;
-    const matchSearch = p.name.toLowerCase().includes(keyword) || (p.barcode && String(p.barcode).toLowerCase().includes(keyword));
-    return matchCat && matchSearch;
-  });
-
-  if (filtered.length === 0) {
-    grid.innerHTML = `<div class="col-span-full py-8 text-center text-slate-400 text-xs">Produk tidak ditemukan</div>`;
+function renderProductsToElement(container, products) {
+  if (!products || products.length === 0) {
+    container.innerHTML = '<div style="text-align:center; padding:2rem; color:#6b7280;">Belum ada barang di katalog toko ini.</div>';
     return;
   }
 
-  grid.innerHTML = filtered.map(p => `
-    <div onclick="window.addToCart('${p.id}')" class="p-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-500 transition-all flex flex-col justify-between shadow-sm cursor-pointer active:scale-95">
-      <div>
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">${p.category_name || 'Umum'}</span>
-        <h4 class="font-semibold text-xs text-slate-800 line-clamp-2 mt-0.5">${p.name}</h4>
-      </div>
-      <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-        <span class="font-bold text-xs text-emerald-600 block">${formatRupiah(p.price)}</span>
-        <span class="text-[10px] font-medium text-slate-500">Stok: <b class="${p.stock <= 3 ? 'text-rose-500' : 'text-slate-700'}">${p.stock}</b></span>
+  const filtered = currentCategory === 'all' 
+    ? products 
+    : products.filter(p => (p.category || 'Umum') === currentCategory);
+
+  container.innerHTML = filtered.map(p => `
+    <div class="product-card" onclick="window.addToCart('${p.id}')" style="cursor: pointer;">
+      <div class="product-info">
+        <h4 class="product-name">${p.name}</h4>
+        <div class="product-price">Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</div>
+        <small class="product-stock" style="color: ${p.stock <= 0 ? '#ef4444' : '#10b981'}">
+          Stok: ${p.stock || 0}
+        </small>
       </div>
     </div>
   `).join('');
 }
 
-// =========================================================================
-// 4. TABEL MASTER PRODUK
-// =========================================================================
-export function renderProductTable() {
-  const tbody = document.getElementById('master-products-tbody');
-  if (!tbody) return;
+// -------------------------------------------------------------------------
+// CART & TRANSAKSI KASIR
+// -------------------------------------------------------------------------
+window.addToCart = function(productId) {
+  const product = (state.products || []).find(p => String(p.id) === String(productId));
+  if (!product) return;
 
-  const keyword = (document.getElementById('prod-table-search')?.value || '').toLowerCase();
-  const filtered = (state.products || []).filter(p =>
-    p.name.toLowerCase().includes(keyword) ||
-    (p.barcode && String(p.barcode).toLowerCase().includes(keyword)) ||
-    (p.category_name && p.category_name.toLowerCase().includes(keyword))
-  );
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(p => `
-    <tr class="hover:bg-slate-50">
-      <td class="py-2.5 px-3 font-mono text-slate-500 font-bold">${p.barcode || '-'}</td>
-      <td class="py-2.5 px-3 font-bold text-slate-800">${p.name}</td>
-      <td class="py-2.5 px-3 text-slate-600"><span class="bg-slate-100 px-2 py-0.5 rounded-md">${p.category_name || 'Umum'}</span></td>
-      <td class="py-2.5 px-3 text-right text-slate-600">${formatRupiah(p.cost_price || 0)}</td>
-      <td class="py-2.5 px-3 text-right font-bold text-emerald-600">${formatRupiah(p.price)}</td>
-      <td class="py-2.5 px-3 text-center">
-        <span class="px-2 py-0.5 rounded-full font-bold ${p.stock <= 3 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
-          ${p.stock} ${p.unit || 'pcs'}
-        </span>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// =========================================================================
-// 5. SETUP DATALIST PO
-// =========================================================================
-export function setupPODatalist() {
-  const datalist = document.getElementById('master-products-datalist');
-  if (!datalist) return;
-  datalist.innerHTML = (state.products || []).map(p => `
-    <option value="${p.barcode || p.name}">[${p.barcode || 'NO-BARCODE'}] ${p.name} - Stok: ${p.stock}</option>
-  `).join('');
-}
-
-// =========================================================================
-// 6. KERANJANG BELANJA KASIR
-// =========================================================================
-export function addToCart(productId) {
-  const product = state.products.find(p => p.id === productId);
-  if (!product || product.stock <= 0) {
-    showToast("Stok produk habis!", "error");
-    return;
-  }
-
-  const existing = state.cart.find(c => c.id === productId);
+  const existing = cart.find(item => String(item.id) === String(productId));
   if (existing) {
-    if (existing.qty < product.stock) {
-      existing.qty += 1;
-    } else {
-      showToast(`Stok ${product.name} hanya tersisa ${product.stock}`, "error");
-    }
+    existing.qty += 1;
   } else {
-    state.cart.push({
+    cart.push({
       id: product.id,
       name: product.name,
-      price: product.price,
-      cost_price: product.cost_price || 0,
-      stock: product.stock,
+      price: Number(product.price || 0),
       qty: 1
     });
   }
-  updateCartUI();
-}
+  renderCart();
+};
 
-export function updateCartUI() {
-  const listDesktop = document.getElementById('cart-list');
-  const listMobile = document.getElementById('mobile-cart-items-list');
-  const totalQty = state.cart.reduce((acc, item) => acc + item.qty, 0);
-  const totalPrice = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+window.updateCartQty = function(productId, delta) {
+  const item = cart.find(item => String(item.id) === String(productId));
+  if (!item) return;
 
-  const renderItemHtml = (item) => `
-    <div class="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 gap-2">
-      <div class="flex-1 min-w-0">
-        <h5 class="text-xs font-semibold text-slate-800 truncate">${item.name}</h5>
-        <span class="text-xs text-emerald-600 font-bold">${formatRupiah(item.price)}</span>
-      </div>
-      <div class="flex items-center gap-1">
-        <button onclick="window.updateQty('${item.id}', -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold transition">-</button>
-        <input type="number" min="1" value="${item.qty}" onchange="window.setDirectCartQty('${item.id}', this.value)" class="w-10 text-center text-xs font-bold bg-white border border-slate-300 rounded p-0.5" />
-        <button onclick="window.updateQty('${item.id}', 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 text-xs font-bold transition">+</button>
-        <button onclick="window.removeCartItem('${item.id}')" class="text-rose-500 hover:text-rose-700 ml-1 text-xs p-1">
-          <i class="fa-solid fa-trash"></i>
-        </button>
-      </div>
-    </div>
-  `;
+  item.qty += delta;
+  if (item.qty <= 0) {
+    cart = cart.filter(i => String(i.id) !== String(productId));
+  }
+  renderCart();
+};
 
-  if (listDesktop) {
-    listDesktop.innerHTML = state.cart.length === 0
-      ? `<div class="text-center py-12 text-slate-400 text-xs">Keranjang masih kosong</div>`
-      : state.cart.map(renderItemHtml).join('');
+function renderCart() {
+  const cartContainer = document.getElementById('cart-items') || document.getElementById('pos-cart-items');
+  const totalEl = document.getElementById('cart-total-amount') || document.getElementById('pos-total');
+  const payBtn = document.getElementById('btn-pay') || document.getElementById('btn-checkout');
+
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+  if (totalEl) {
+    totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
   }
 
-  if (listMobile) {
-    listMobile.innerHTML = state.cart.length === 0
-      ? `<div class="text-center py-4 text-slate-400 text-xs">Belum ada barang dipilih</div>`
-      : state.cart.map(renderItemHtml).join('');
+  if (payBtn) {
+    payBtn.disabled = cart.length === 0;
   }
 
-  const elTotalQty = document.getElementById('cart-total-qty');
-  if (elTotalQty) elTotalQty.innerText = totalQty;
+  if (!cartContainer) return;
 
-  const elTotalPrice = document.getElementById('cart-total-price');
-  if (elTotalPrice) elTotalPrice.innerText = formatRupiah(totalPrice);
-
-  const elBottomBadge = document.getElementById('bottom-cart-badge');
-  if (elBottomBadge) elBottomBadge.innerText = totalQty;
-
-  const elMobBadge = document.getElementById('mobile-cart-badge');
-  if (elMobBadge) elMobBadge.innerText = `${totalQty} item`;
-
-  const elMobTotal = document.getElementById('mobile-cart-total');
-  if (elMobTotal) elMobTotal.innerText = formatRupiah(totalPrice);
-
-  const hasItems = state.cart.length > 0;
-  const btnCheckout = document.getElementById('btn-checkout');
-  if (btnCheckout) btnCheckout.disabled = !hasItems;
-
-  const mobBtn = document.getElementById('mobile-btn-checkout');
-  if (mobBtn) mobBtn.disabled = !hasItems;
-}
-
-export function updateQty(productId, delta) {
-  const item = state.cart.find(c => c.id === productId);
-  const product = state.products.find(p => p.id === productId);
-  if (!item || !product) return;
-
-  const targetQty = item.qty + delta;
-  if (targetQty > product.stock) {
-    showToast(`Stok ${product.name} sisa ${product.stock}`, 'error');
+  if (cart.length === 0) {
+    cartContainer.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#9ca3af;">Keranjang kosong</div>';
     return;
   }
-  if (targetQty <= 0) {
-    state.cart = state.cart.filter(c => c.id !== productId);
-  } else {
-    item.qty = targetQty;
-  }
-  updateCartUI();
+
+  cartContainer.innerHTML = cart.map(item => `
+    <div class="cart-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <div>
+        <div style="font-weight: 600;">${item.name}</div>
+        <small>Rp ${item.price.toLocaleString('id-ID')} x ${item.qty}</small>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button class="btn btn-sm" onclick="window.updateCartQty('${item.id}', -1)">-</button>
+        <span>${item.qty}</span>
+        <button class="btn btn-sm" onclick="window.updateCartQty('${item.id}', 1)">+</button>
+      </div>
+    </div>
+  `).join('');
 }
 
-export function setDirectCartQty(productId, newQty) {
-  const item = state.cart.find(c => c.id === productId);
-  const product = state.products.find(p => p.id === productId);
-  if (!item || !product) return;
+// -------------------------------------------------------------------------
+// PROSES PEMBAYARAN KASIR
+// -------------------------------------------------------------------------
+window.handleCheckoutPOS = async function() {
+  if (cart.length === 0) {
+    alert('Keranjang belanja masih kosong!');
+    return;
+  }
 
-  let qty = parseInt(newQty) || 1;
-  if (qty > product.stock) {
-    qty = product.stock;
-    showToast(`Maksimum stok ${product.name} adalah ${product.stock}`, 'error');
+  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const paymentMethod = document.getElementById('payment-method')?.value || 'CASH';
+
+  try {
+    const payload = {
+      items: cart.map(i => ({ productId: i.id, quantity: i.qty, price: i.price })),
+      totalAmount: total,
+      paymentMethod: paymentMethod
+    };
+
+    const res = await api('/api/checkout', 'POST', payload);
+    if (res.success) {
+      alert('Pembayaran berhasil!');
+      cart = [];
+      renderCart();
+      await loadPOSProducts();
+      if (window.closeModal) window.closeModal('modal-checkout');
+    } else {
+      alert(res.error || 'Pembayaran gagal');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Gagal memproses pembayaran ke server.');
   }
-  if (qty <= 0) {
-    state.cart = state.cart.filter(c => c.id !== productId);
-  } else {
-    item.qty = qty;
+};
+
+function setupPOSEvents() {
+  const searchInput = document.getElementById('search-product') || document.querySelector('input[type="search"]');
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      const matched = (state.products || []).filter(p => 
+        (p.name && p.name.toLowerCase().includes(q)) || 
+        (p.sku && p.sku.toLowerCase().includes(q))
+      );
+      const container = document.getElementById('pos-product-grid') || document.getElementById('product-grid') || document.querySelector('.product-grid');
+      if (container) renderProductsToElement(container, matched);
+    };
   }
-  updateCartUI();
 }
 
-export function removeCartItem(productId) {
-  state.cart = state.cart.filter(c => c.id !== productId);
-  updateCartUI();
-}
-
-export function clearCart() {
-  state.cart = [];
-  updateCartUI();
-}
-
-// Live-filter saat mengetik di kotak pencarian kasir
-document.addEventListener('DOMContentLoaded', () => {
-  const searchInput = document.getElementById('search-input');
-  if (searchInput && !searchInput.dataset.bound) {
-    searchInput.dataset.bound = 'true';
-    searchInput.addEventListener('input', renderProductGrid);
-  }
-});
-
-window.filterCategory = filterCategory;
-window.addToCart = addToCart;
-window.updateQty = updateQty;
-window.setDirectCartQty = setDirectCartQty;
-window.removeCartItem = removeCartItem;
-window.clearCart = clearCart;
-window.renderProductTable = renderProductTable;
-window.loadMasterProducts = loadMasterProducts;
+// Window bindings
+window.initPOSView = initPOSView;
+window.loadPOSProducts = loadPOSProducts;
+window.handleCheckoutPOS = handleCheckoutPOS;
