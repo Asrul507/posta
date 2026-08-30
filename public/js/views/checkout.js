@@ -81,13 +81,19 @@ export async function submitTransaction() {
   const cartSnapshot = [...state.cart];
 
   try {
-    const payload = {
-      tenant_id: state.tenantId,
-      items: cartSnapshot,
-      paid_amount: cash,
-      payment_method: 'CASH',
-      cashier_name: cashierName
-    };
+      const payload = {
+    tenant_id: state.currentUser?.tenant_id || 'berkah',
+    cashier_id: state.currentUser?.id || 'cashier',
+    cashier_name: state.currentUser?.full_name || state.currentUser?.username || 'Kasir',
+    shift_id: state.currentShift ? state.currentShift.id : null,
+    items: state.cart,
+    payment_method: selectedPaymentMethod,
+    cash_amount: cashAmount,
+    change_amount: changeAmount,
+    discount_amount: 0,
+    customer_name: 'Pelanggan Umum',
+  };
+
 
     const res = await fetch('/api/checkout', {
       method: 'POST',
