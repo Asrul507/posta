@@ -2,34 +2,40 @@ import { adjustStock, getStockHistory, api } from '../api.js';
 import { state } from '../state.js';
 
 export async function initAdminView() {
-  console.log('Inisialisasi Admin View...');
+  console.log('Memuat Admin & Developer Dashboard...');
   await loadAdminDashboardData();
 }
 
 export async function loadAdminDashboardData() {
   try {
-    const isSuperAdmin = state.user?.role === 'SUPERADMIN' || window.location.hostname.includes('posta.gpro.my.id') || window.location.hostname === 'localhost';
+    const isSuperAdmin = state.user?.role === 'SUPERADMIN' || window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
 
-    // Tampilkan panel Superadmin jika login di domain pusat
-    const superadminSection = document.getElementById('superadmin-panel') || document.getElementById('developer-dashboard');
-    if (superadminSection) {
-      superadminSection.style.display = isSuperAdmin ? 'block' : 'none';
+    // 1. Kontrol Tampilan Panel Superadmin vs Panel Toko
+    const superadminPanel = document.getElementById('panel-developer-superadmin');
+    const storeAdminPanel = document.getElementById('panel-store-admin');
+
+    if (superadminPanel) {
+      superadminPanel.style.display = isSuperAdmin ? 'block' : 'none';
+    }
+    if (storeAdminPanel) {
+      storeAdminPanel.style.display = isSuperAdmin ? 'none' : 'block';
     }
 
+    // 2. Load data sesuai tipe dashboard
     if (isSuperAdmin) {
       await loadTenantsList();
       await loadAdminUsersList();
+    } else {
+      await loadAdminProducts();
     }
-
-    await loadAdminProducts();
   } catch (err) {
-    console.error('Gagal load dashboard admin:', err);
+    console.error('Gagal inisialisasi dashboard admin:', err);
   }
 }
 
-// -------------------------------------------------------------------------
-// SUPERADMIN: TENANT & USER MANAGEMENT
-// -------------------------------------------------------------------------
+// =========================================================================
+// DEVELOPER / SUPERADMIN: MANAJEMEN TOKO (TENANTS) & USER
+// =========================================================================
 export async function loadTenantsList() {
   try {
     const res = await api('/api/admin/tenants', 'GET');
@@ -38,18 +44,18 @@ export async function loadTenantsList() {
     if (!tbody) return;
 
     if (tenants.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada toko.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data toko.</td></tr>';
       return;
     }
 
     tbody.innerHTML = tenants.map(t => `
       <tr>
         <td><strong>${t.name}</strong></td>
-        <td><a href="https://${t.subdomain}.gpro.my.id" target="_blank">${t.subdomain}.gpro.my.id</a></td>
+        <td><a href="https://${t.subdomain}.gpro.my.id" target="_blank" class="text-blue-500">${t.subdomain}.gpro.my.id</a></td>
         <td>${t.total_products || 0} Item</td>
-        <td>${t.total_transactions || 0} Trx</td>
-        <td>
-          <button class="btn btn-sm btn-primary" onclick="window.impersonateTenant('${t.subdomain}')">Masuk Toko</button>
+        <td>${t.total_transactions || 0} Transaksi</td>
+        <td class="text-right">
+          <button class="btn btn-sm btn-primary" onclick="window.impersonateTenant('${t.subdomain}')">Buka Toko ↗</button>
         </td>
       </tr>
     `).join('');
@@ -65,12 +71,17 @@ export async function loadAdminUsersList() {
     const tbody = document.getElementById('admin-users-table-body');
     if (!tbody) return;
 
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center">Belum ada user.</td></tr>';
+      return;
+    }
+
     tbody.innerHTML = users.map(u => `
       <tr>
         <td><strong>${u.name}</strong> (${u.username})</td>
-        <td>${u.role}</td>
-        <td>${u.tenant_name || '-'}</td>
-        <td>${u.is_active ? 'Aktif' : 'Nonaktif'}</td>
+        <td><span class="badge badge-info">${u.role}</span></td>
+        <td>${u.tenant_name || 'PUSAT'}</td>
+        <td>${u.is_active ? '✅ Aktif' : '❌ Nonaktif'}</td>
       </tr>
     `).join('');
   } catch (err) {
@@ -78,7 +89,7 @@ export async function loadAdminUsersList() {
   }
 }
 
-// Handler Tambah Toko
+// Buat Toko / Subdomain Baru
 window.handleCreateTenant = async function(event) {
   if (event) event.preventDefault();
   const name = document.getElementById('tenant-name')?.value;
@@ -100,7 +111,7 @@ window.handleCreateTenant = async function(event) {
   }
 };
 
-// Handler Tambah User
+// Buat User Baru
 window.handleCreateUser = async function(event) {
   if (event) event.preventDefault();
   const name = document.getElementById('user-name')?.value;
@@ -129,16 +140,16 @@ export async function impersonateTenant(subdomain) {
     if (res.success && res.target_url) {
       window.location.href = res.target_url;
     } else {
-      alert(res.error || 'Gagal masuk ke toko');
+      alert(res.error || 'Gagal membuka toko');
     }
   } catch (err) {
-    alert('Terjadi kesalahan');
+    alert('Terjadi kesalahan jaringan.');
   }
 }
 
-// -------------------------------------------------------------------------
-// PRODUK & STOK OPNAME
-// -------------------------------------------------------------------------
+// =========================================================================
+// PRODUK & STOK OPNAME (STORE LEVEL)
+// =========================================================================
 export async function loadAdminProducts() {
   try {
     const res = await api('/api/products', 'GET');
@@ -146,7 +157,7 @@ export async function loadAdminProducts() {
     state.products = products;
     renderAdminProductsTable(products);
   } catch (err) {
-    console.error(err);
+    console.error('Gagal mengambil list produk toko:', err);
   }
 }
 
@@ -155,7 +166,7 @@ export function renderAdminProductsTable(products) {
   if (!tbody) return;
 
   if (!products || products.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Belum ada produk terdaftar.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Belum ada data produk di toko ini.</td></tr>';
     return;
   }
 
@@ -174,7 +185,7 @@ export function renderAdminProductsTable(products) {
   `).join('');
 }
 
-// Binding Global
+// Global Bindings
 window.impersonateTenant = impersonateTenant;
 window.renderProductTable = loadAdminProducts;
 window.renderAdminProducts = loadAdminProducts;
