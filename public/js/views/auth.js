@@ -16,24 +16,28 @@ export function checkAuth() {
       return false;
     }
   } else {
-    showLoginModal();
+    // Jangan kunci layar jika di domain superadmin / posta pusat
+    const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+    if (!isSuperDomain) {
+      showLoginModal();
+    }
     return false;
   }
 }
 
 export function showLoginModal() {
-  const loginModal = document.getElementById('login-modal') || document.getElementById('login-root');
+  const loginModal = document.getElementById('login-modal') || document.querySelector('.login-backdrop') || document.getElementById('login-root');
   if (loginModal) {
     loginModal.classList.remove('hidden');
-    loginModal.style.display = 'flex';
+    loginModal.style.pointerEvents = 'auto';
   }
 }
 
 export function hideLoginModal() {
-  const loginModal = document.getElementById('login-modal') || document.getElementById('login-root');
+  const loginModal = document.getElementById('login-modal') || document.querySelector('.login-backdrop') || document.getElementById('login-root');
   if (loginModal) {
     loginModal.classList.add('hidden');
-    loginModal.style.display = 'none';
+    loginModal.style.pointerEvents = 'none';
   }
 }
 
@@ -67,12 +71,11 @@ export async function handleLoginSubmit(event) {
       hideLoginModal();
       if (errorEl) errorEl.classList.add('hidden');
 
-      // Refresh aplikasi
       if (window.initNavigation) window.initNavigation();
       if (window.updateNavVisibility) window.updateNavVisibility();
     } else {
       if (errorEl) {
-        errorEl.textContent = res.error || 'Login gagal, periksa akun Anda.';
+        errorEl.textContent = res.error || 'Login gagal, periksa username/password.';
         errorEl.classList.remove('hidden');
       }
     }
@@ -92,7 +95,6 @@ export function logout() {
   window.location.reload();
 }
 
-// Global window bindings
 window.handleLoginSubmit = handleLoginSubmit;
 window.postaLogout = logout;
 window.postaAuth = { checkAuth, showLoginModal, hideLoginModal, logout };
