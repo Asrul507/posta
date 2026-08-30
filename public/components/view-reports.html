@@ -1,183 +1,66 @@
-<!-- ========================================================================= -->
-<!-- 1. VIEW LAPORAN HARIAN (Z-REPORT)                                        -->
-<!-- ========================================================================= -->
-<div id="view-daily-report" class="space-y-6 hidden p-4 sm:p-6 max-w-6xl mx-auto overflow-y-auto h-full">
-  
-  <!-- Header & Filter Tanggal -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 shrink-0">
-    <div>
-      <h2 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-        <i class="fa-solid fa-chart-pie text-emerald-600"></i>
-        <span>Laporan Harian (Z-Report)</span>
-      </h2>
-      <p class="text-xs text-slate-500 mt-0.5">Ringkasan penjualan, audit kas shift kasir, dan estimasi laba kotor hari ini</p>
-    </div>
-    
-    <div class="flex items-center gap-2">
-      <input 
-        id="daily-report-date" 
-        type="date" 
-        onchange="window.loadDailyReport()" 
-        class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:outline-none focus:border-emerald-500" 
-      />
-      <button 
-        onclick="window.loadDailyReport()" 
-        class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95">
-        <i class="fa-solid fa-rotate-right"></i>
-        <span>Segarkan</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Kartu Metrik Ringkasan Harian -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Total Omzet Penjualan</span>
-      <div id="daily-total-sales" class="text-lg sm:text-xl font-black text-slate-900">Rp 0</div>
-      <span id="daily-tx-count" class="text-[11px] text-slate-500 block font-medium">0 Transaksi Selesai</span>
+<div class="p-6 space-y-6">
+    <div class="flex items-center justify-between border-b pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Laporan & Analisis</h1>
+            <p class="text-sm text-gray-500">Pantau performa penjualan, laba kotor, dan rekap shift kasir.</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="tab-btn-daily" onclick="window.postaReports.switchReportTab('daily')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition">
+                Laporan Harian (Z-Report)
+            </button>
+            <button id="tab-btn-monthly" onclick="window.postaReports.switchReportTab('monthly')" class="px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-semibold transition">
+                Laporan Bulanan & Grafik
+            </button>
+        </div>
     </div>
 
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-emerald-600 tracking-wider">Estimasi Laba Kotor</span>
-      <div id="daily-gross-profit" class="text-lg sm:text-xl font-black text-emerald-600">Rp 0</div>
-      <span id="daily-margin-pct" class="text-[11px] text-emerald-600 block font-bold">Margin: 0%</span>
+    <!-- TAB 1: Laporan Harian -->
+    <div id="report-pane-daily" class="space-y-6">
+        <div class="flex items-center gap-3">
+            <label class="text-sm font-medium text-gray-700">Pilih Tanggal:</label>
+            <input type="date" id="daily-report-date" class="px-3 py-2 border rounded-lg text-sm bg-white shadow-sm" onchange="window.postaReports.loadDailyReport()">
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="daily-summary-cards"></div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4" id="daily-shifts-breakdown"></div>
     </div>
 
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Beban Pokok (HPP)</span>
-      <div id="daily-total-cogs" class="text-lg sm:text-xl font-black text-slate-700">Rp 0</div>
-      <span class="text-[11px] text-slate-400 block">Total Modal Terjual</span>
-    </div>
+    <!-- TAB 2: Laporan Bulanan -->
+    <div id="report-pane-monthly" class="hidden space-y-6">
+        <div class="flex items-center gap-3">
+            <label class="text-sm font-medium text-gray-700">Pilih Bulan & Tahun:</label>
+            <input type="month" id="monthly-report-period" class="px-3 py-2 border rounded-lg text-sm bg-white shadow-sm" onchange="window.postaReports.loadMonthlyReport()">
+        </div>
 
-    <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Metode Pembayaran</span>
-      <div class="flex justify-between items-center text-xs font-bold pt-1">
-        <span class="text-slate-600">Tunai (Cash):</span>
-        <span id="daily-cash-sales" class="text-slate-900">Rp 0</span>
-      </div>
-      <div class="flex justify-between items-center text-xs font-bold">
-        <span class="text-slate-600">Non-Tunai (QRIS):</span>
-        <span id="daily-noncash-sales" class="text-indigo-600">Rp 0</span>
-      </div>
-    </div>
-  </div>
+        <!-- GRAFIK / CHART BULANAN -->
+        <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-800">Grafik Tren Penjualan & Laba Kotor</h3>
+                <span class="text-xs text-gray-400">Omzet Penjualan vs Laba Kotor (Gross Profit)</span>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
 
-  <!-- TABEL REKAP SHIFT KASIR HARI INI -->
-  <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden space-y-3 p-4">
-    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-      <div>
-        <h3 class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-          <i class="fa-solid fa-user-clock text-amber-500"></i>
-          <span>Rekap Shift Kasir (Pagi / Siang / Malam)</span>
-        </h3>
-        <p class="text-[11px] text-slate-500">Audit kas modal awal, total tunai masuk, uang fisik closing, dan status selisih kas</p>
-      </div>
+        <!-- TABEL RINCIAN BULANAN -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-4 border-b">
+                <h3 class="font-semibold text-gray-800">Rincian Transaksi Harian</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-gray-600">
+                    <thead class="bg-gray-50 text-xs uppercase font-medium text-gray-400 border-b">
+                        <tr>
+                            <th class="px-4 py-3">Tanggal</th>
+                            <th class="px-4 py-3">Jumlah Nota</th>
+                            <th class="px-4 py-3">Omzet Penjualan</th>
+                            <th class="px-4 py-3">HPP / Modal</th>
+                            <th class="px-4 py-3">Estimasi Laba Kotor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthly-report-table" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
-
-    <div class="overflow-x-auto">
-      <table class="w-full text-left text-xs border-collapse">
-        <thead>
-          <tr class="bg-slate-50 border-b border-slate-200 text-[10px] uppercase text-slate-500 font-extrabold">
-            <th class="py-2.5 px-3">Shift & Kasir</th>
-            <th class="py-2.5 px-3">Jam Kerja</th>
-            <th class="py-2.5 px-3 text-right">Modal Awal</th>
-            <th class="py-2.5 px-3 text-right">Tunai Masuk</th>
-            <th class="py-2.5 px-3 text-right">Harus Ada (Laci)</th>
-            <th class="py-2.5 px-3 text-right">Fisik Diinput</th>
-            <th class="py-2.5 px-3 text-center">Selisih</th>
-            <th class="py-2.5 px-3 text-center">Status</th>
-          </tr>
-        </thead>
-        <tbody id="daily-shifts-table-tbody" class="divide-y divide-slate-100 text-slate-700">
-          <tr>
-            <td colspan="8" class="text-center py-8 text-slate-400">
-              <i class="fa-solid fa-spinner fa-spin mr-1"></i> Memuat rekap shift...
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- ========================================================================= -->
-<!-- 2. VIEW LAPORAN BULANAN & LABA KOTOR                                      -->
-<!-- ========================================================================= -->
-<div id="view-monthly-report" class="space-y-6 hidden p-4 sm:p-6 max-w-6xl mx-auto overflow-y-auto h-full">
-  
-  <!-- Header & Filter Bulan -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 shrink-0">
-    <div>
-      <h2 class="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-        <i class="fa-solid fa-chart-line text-indigo-600"></i>
-        <span>Laporan Bulanan & Laba Toko</span>
-      </h2>
-      <p class="text-xs text-slate-500 mt-0.5">Analisis tren omzet penjualan bulanan, total HPP, dan performa laba kotor</p>
-    </div>
-    
-    <div class="flex items-center gap-2">
-      <input 
-        id="monthly-report-month" 
-        type="month" 
-        onchange="window.loadMonthlyReport()" 
-        class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm focus:outline-none focus:border-indigo-500" 
-      />
-      <button 
-        onclick="window.loadMonthlyReport()" 
-        class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95">
-        <i class="fa-solid fa-rotate-right"></i>
-        <span>Segarkan</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Kartu Metrik Bulanan -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Total Omzet Bulan Ini</span>
-      <div id="monthly-total-sales" class="text-2xl font-black text-slate-900">Rp 0</div>
-      <span id="monthly-tx-count" class="text-xs text-slate-500 block font-medium">0 Transaksi Selesai</span>
-    </div>
-
-    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Beban Pokok Penjualan (HPP)</span>
-      <div id="monthly-total-cogs" class="text-2xl font-black text-slate-700">Rp 0</div>
-      <span class="text-xs text-slate-400 block">Total Modal Barang Terjual</span>
-    </div>
-
-    <div class="bg-emerald-50 p-5 rounded-2xl border border-emerald-200/80 shadow-sm space-y-1">
-      <span class="text-[10px] font-extrabold uppercase text-emerald-700 tracking-wider">Laba Kotor Bersih (Gross Profit)</span>
-      <div id="monthly-gross-profit" class="text-2xl font-black text-emerald-700">Rp 0</div>
-      <span id="monthly-margin-pct" class="text-xs text-emerald-600 font-bold block">Margin Rata-rata: 0%</span>
-    </div>
-  </div>
-
-  <!-- TABEL RINCIAN TREN PENJUALAN PER HARI -->
-  <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 space-y-3">
-    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-      <h3 class="font-extrabold text-sm text-slate-900 flex items-center gap-2">
-        <i class="fa-solid fa-calendar-days text-indigo-500"></i>
-        <span>Rincian Penjualan Per Hari</span>
-      </h3>
-    </div>
-
-    <div class="overflow-x-auto max-h-96">
-      <table class="w-full text-left text-xs border-collapse">
-        <thead class="sticky top-0 bg-slate-50">
-          <tr class="border-b border-slate-200 text-[10px] uppercase text-slate-500 font-extrabold">
-            <th class="py-2.5 px-3">Tanggal Penjualan</th>
-            <th class="py-2.5 px-3 text-center">Jumlah Transaksi</th>
-            <th class="py-2.5 px-3 text-right">Omzet Penjualan (Rp)</th>
-          </tr>
-        </thead>
-        <tbody id="monthly-trends-table-tbody" class="divide-y divide-slate-100 text-slate-700">
-          <tr>
-            <td colspan="3" class="text-center py-8 text-slate-400">
-              <i class="fa-solid fa-spinner fa-spin mr-1"></i> Memuat rincian harian...
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>
