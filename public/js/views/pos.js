@@ -2,11 +2,9 @@ import { api } from '../api.js';
 import { state } from '../state.js';
 
 let cart = [];
-let currentCategory = 'all';
 
 export async function initPOSView() {
-  console.log('Inisialisasi POS View...');
-  cart = [];
+  console.log('Inisialisasi POS Kasir...');
   renderCart();
   await loadPOSProducts();
   setupPOSEvents();
@@ -20,50 +18,38 @@ export async function loadPOSProducts() {
     const products = Array.isArray(res) ? res : (res.data || []);
     state.products = products;
 
-    if (!container) {
-      // Jika grid belum ketemu, coba cari kontainer dengan teks loading
-      const loadingEl = Array.from(document.querySelectorAll('div, p')).find(el => el.textContent.includes('Memuat katalog barang'));
-      if (loadingEl && loadingEl.parentElement) {
-        renderProductsToElement(loadingEl.parentElement, products);
-      }
-      return;
-    }
-
-    renderProductsToElement(container, products);
+    if (!container) return;
+    renderProductsToGrid(container, products);
   } catch (err) {
     console.error('Gagal memuat produk POS:', err);
     if (container) {
-      container.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">Gagal memuat katalog barang. Silakan refresh.</div>';
+      container.innerHTML = '<div class="col-span-full text-center p-6 text-red-500">Gagal memuat katalog barang.</div>';
     }
   }
 }
 
-function renderProductsToElement(container, products) {
+function renderProductsToGrid(container, products) {
   if (!products || products.length === 0) {
-    container.innerHTML = '<div style="text-align:center; padding:2rem; color:#6b7280;">Belum ada barang di katalog toko ini.</div>';
+    container.innerHTML = '<div class="col-span-full text-center p-8 text-gray-400">Belum ada produk di toko ini.</div>';
     return;
   }
 
-  const filtered = currentCategory === 'all' 
-    ? products 
-    : products.filter(p => (p.category || 'Umum') === currentCategory);
-
-  container.innerHTML = filtered.map(p => `
-    <div class="product-card" onclick="window.addToCart('${p.id}')" style="cursor: pointer;">
-      <div class="product-info">
-        <h4 class="product-name">${p.name}</h4>
-        <div class="product-price">Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</div>
-        <small class="product-stock" style="color: ${p.stock <= 0 ? '#ef4444' : '#10b981'}">
+  container.innerHTML = products.map(p => `
+    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col justify-between" onclick="window.addToCart('${p.id}')">
+      <div>
+        <h4 class="font-bold text-gray-800 line-clamp-2">${p.name}</h4>
+        <div class="text-blue-600 font-bold mt-1">Rp ${(Number(p.price || 0)).toLocaleString('id-ID')}</div>
+      </div>
+      <div class="mt-3 flex justify-between items-center text-xs">
+        <span class="${p.stock <= 0 ? 'text-red-500' : 'text-green-600'} font-semibold">
           Stok: ${p.stock || 0}
-        </small>
+        </span>
+        <button class="px-2 py-1 bg-blue-50 text-blue-600 rounded font-bold hover:bg-blue-600 hover:text-white transition">+</button>
       </div>
     </div>
   `).join('');
 }
 
-// -------------------------------------------------------------------------
-// CART & TRANSAKSI KASIR
-// -------------------------------------------------------------------------
 window.addToCart = function(productId) {
   const product = (state.products || []).find(p => String(p.id) === String(productId));
   if (!product) return;
@@ -100,42 +86,34 @@ function renderCart() {
 
   const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-  if (totalEl) {
-    totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
-  }
-
-  if (payBtn) {
-    payBtn.disabled = cart.length === 0;
-  }
+  if (totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+  if (payBtn) payBtn.disabled = cart.length === 0;
 
   if (!cartContainer) return;
 
   if (cart.length === 0) {
-    cartContainer.innerHTML = '<div style="text-align:center; padding:1.5rem; color:#9ca3af;">Keranjang kosong</div>';
+    cartContainer.innerHTML = '<div class="text-center p-6 text-gray-400">Keranjang kosong</div>';
     return;
   }
 
   cartContainer.innerHTML = cart.map(item => `
-    <div class="cart-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+    <div class="flex justify-between items-center p-2 border-b border-gray-100">
       <div>
-        <div style="font-weight: 600;">${item.name}</div>
-        <small>Rp ${item.price.toLocaleString('id-ID')} x ${item.qty}</small>
+        <div class="font-semibold text-sm text-gray-800">${item.name}</div>
+        <div class="text-xs text-gray-500">Rp ${item.price.toLocaleString('id-ID')} x ${item.qty}</div>
       </div>
-      <div style="display: flex; gap: 6px; align-items: center;">
-        <button class="btn btn-sm" onclick="window.updateCartQty('${item.id}', -1)">-</button>
-        <span>${item.qty}</span>
-        <button class="btn btn-sm" onclick="window.updateCartQty('${item.id}', 1)">+</button>
+      <div class="flex items-center space-x-2">
+        <button class="w-6 h-6 bg-gray-100 rounded text-gray-700 hover:bg-gray-200" onclick="window.updateCartQty('${item.id}', -1)">-</button>
+        <span class="text-sm font-bold">${item.qty}</span>
+        <button class="w-6 h-6 bg-gray-100 rounded text-gray-700 hover:bg-gray-200" onclick="window.updateCartQty('${item.id}', 1)">+</button>
       </div>
     </div>
   `).join('');
 }
 
-// -------------------------------------------------------------------------
-// PROSES PEMBAYARAN KASIR
-// -------------------------------------------------------------------------
 window.handleCheckoutPOS = async function() {
   if (cart.length === 0) {
-    alert('Keranjang belanja masih kosong!');
+    alert('Keranjang belanja kosong!');
     return;
   }
 
@@ -146,22 +124,21 @@ window.handleCheckoutPOS = async function() {
     const payload = {
       items: cart.map(i => ({ productId: i.id, quantity: i.qty, price: i.price })),
       totalAmount: total,
-      paymentMethod: paymentMethod
+      paymentMethod
     };
 
     const res = await api('/api/checkout', 'POST', payload);
     if (res.success) {
-      alert('Pembayaran berhasil!');
+      alert('Transaksi berhasil disimpan!');
       cart = [];
       renderCart();
       await loadPOSProducts();
       if (window.closeModal) window.closeModal('modal-checkout');
     } else {
-      alert(res.error || 'Pembayaran gagal');
+      alert(res.error || 'Checkout gagal');
     }
   } catch (err) {
-    console.error(err);
-    alert('Gagal memproses pembayaran ke server.');
+    alert('Gagal memproses transaksi.');
   }
 };
 
@@ -175,12 +152,11 @@ function setupPOSEvents() {
         (p.sku && p.sku.toLowerCase().includes(q))
       );
       const container = document.getElementById('pos-product-grid') || document.getElementById('product-grid') || document.querySelector('.product-grid');
-      if (container) renderProductsToElement(container, matched);
+      if (container) renderProductsToGrid(container, matched);
     };
   }
 }
 
-// Window bindings
 window.initPOSView = initPOSView;
 window.loadPOSProducts = loadPOSProducts;
 window.handleCheckoutPOS = handleCheckoutPOS;
