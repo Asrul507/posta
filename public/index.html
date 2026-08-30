@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Posta POS - Cloud POS System</title>
+  <title>Posta POS - Cloud System</title>
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   
   <style>
-    /* Reset & Base */
+    /* RESET & BASE */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f1f5f9; color: #1e293b; }
     body { display: flex; flex-direction: column; overflow: hidden; }
@@ -17,70 +17,58 @@
     .text-right { text-align: right; }
     .text-center { text-align: center; }
 
-    /* Layout Containers */
-    #header-root { width: 100%; flex-shrink: 0; z-index: 20; background: #ffffff; border-bottom: 1px solid #e2e8f0; }
+    /* HEADER */
+    .app-header { display: flex; justify-content: space-between; align-items: center; padding: 0 1.25rem; height: 60px; background: #ffffff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; z-index: 20; }
+    .header-left { display: flex; align-items: center; gap: 1rem; }
+    .header-menu-btn { background: transparent; border: 1px solid #cbd5e1; border-radius: 0.375rem; padding: 0.4rem 0.65rem; cursor: pointer; color: #334155; }
+    .header-brand h1 { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0; }
+    .header-meta { font-size: 0.75rem; color: #64748b; }
+    .btn-shift { padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid #fef08a; background-color: #fef9c3; color: #854d0e; }
+
+    /* LAYOUT & MAIN CONTENT */
     .app-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
-    .main-content { flex: 1; overflow-y: auto; padding: 1.5rem; background-color: #f8fafc; position: relative; z-index: 10; }
+    .main-content { flex: 1; overflow-y: auto; padding: 1.5rem; background-color: #f8fafc; z-index: 10; }
     .app-view { width: 100%; max-width: 1200px; margin: 0 auto; }
 
-    /* Header Bar */
-    .app-header, .header-bar { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.25rem; height: 60px; background: #ffffff; }
-    .header-left { display: flex; align-items: center; gap: 1rem; }
-    .header-menu-btn, .btn-menu-toggle { background: transparent; border: 1px solid #cbd5e1; border-radius: 0.375rem; padding: 0.5rem 0.65rem; cursor: pointer; color: #334155; font-size: 1rem; }
-    .header-menu-btn:hover { background-color: #f1f5f9; }
-    .header-brand h1, .header-title { font-size: 1.2rem; font-weight: 700; color: #0f172a; margin: 0; }
-    .header-meta { font-size: 0.75rem; color: #64748b; }
-    .header-actions { display: flex; align-items: center; gap: 0.5rem; }
-    .btn-shift { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid #fef08a; background-color: #fef9c3; color: #854d0e; }
-
-    /* Sidebar Drawer System */
-    #sidebar-root { position: fixed; top: 0; bottom: 0; left: 0; width: 280px; background: #ffffff; border-right: 1px solid #e2e8f0; z-index: 50; transform: translateX(-100%); transition: transform 0.25s ease-in-out; box-shadow: 4px 0 15px rgba(0,0,0,0.08); }
-    #sidebar-root.active { transform: translateX(0) !important; }
+    /* SIDEBAR DRAWER */
+    #sidebar-drawer { position: fixed; top: 0; bottom: 0; left: 0; width: 280px; background: #ffffff; border-right: 1px solid #e2e8f0; z-index: 50; transform: translateX(-100%); transition: transform 0.2s ease-in-out; box-shadow: 4px 0 15px rgba(0,0,0,0.08); }
+    #sidebar-drawer.active { transform: translateX(0) !important; }
     .sidebar-header { padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     .sidebar-header h2 { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0; }
     .sidebar-close-btn { background: transparent; border: none; font-size: 1.25rem; color: #64748b; cursor: pointer; }
-    .sidebar-menu, .sidebar-content { padding: 1rem 0; overflow-y: auto; height: calc(100% - 60px); }
-    .sidebar-section { margin-bottom: 1.25rem; }
+    .sidebar-menu { padding: 1rem 0; overflow-y: auto; height: calc(100% - 60px); }
     .sidebar-section-title { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; padding: 0 1.25rem 0.5rem; }
-    .sidebar-nav { list-style: none; }
     .sidebar-link { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.65rem 1.25rem; font-size: 0.875rem; color: #334155; text-decoration: none; border: none; background: transparent; cursor: pointer; text-align: left; }
     .sidebar-link:hover { background-color: #f1f5f9; color: #2563eb; }
 
-    /* Cards & Tables */
+    /* CARDS & TABLES */
     .card { background: #ffffff; border-radius: 0.75rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); padding: 1.25rem; margin-bottom: 1.5rem; }
     .view-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; }
     .subtitle { color: #64748b; font-size: 0.875rem; margin-top: 0.25rem; }
 
-    /* Buttons */
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer !important; border: 1px solid transparent; transition: all 0.15s; pointer-events: auto !important; }
-    .btn-primary { background-color: #2563eb !important; color: #ffffff !important; }
-    .btn-primary:hover { background-color: #1d4ed8 !important; }
-    .btn-secondary { background-color: #ffffff !important; border-color: #cbd5e1 !important; color: #334155 !important; }
-    .btn-secondary:hover { background-color: #f8fafc !important; }
-    .btn-outline { background-color: transparent !important; border-color: #cbd5e1 !important; color: #334155 !important; }
-    .btn-outline:hover { background-color: #f8fafc !important; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1rem; border-radius: 0.5rem; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+    .btn-primary { background-color: #2563eb; color: #ffffff; }
+    .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-secondary { background-color: #ffffff; border-color: #cbd5e1; color: #334155; }
+    .btn-secondary:hover { background-color: #f8fafc; }
+    .btn-outline { background-color: transparent; border-color: #cbd5e1; color: #334155; }
+    .btn-outline:hover { background-color: #f8fafc; }
     .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.75rem; border-radius: 0.375rem; }
 
-    /* Tables */
     .table-container { width: 100%; overflow-x: auto; }
     .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
     .data-table th { background-color: #f8fafc; color: #475569; font-weight: 600; padding: 0.75rem 1rem; border-bottom: 1px solid #e2e8f0; font-size: 0.75rem; text-transform: uppercase; }
     .data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
     .data-table tr:hover td { background-color: #f8fafc; }
 
-    /* Badges */
     .badge { padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; display: inline-flex; }
     .badge-info { background: #e0e7ff; color: #3730a3; }
     .badge-success { background: #dcfce7; color: #166534; }
     .badge-danger { background: #fee2e2; color: #991b1b; }
 
-    /* Modals & Login (ANTI-FREEZE KLIK LAYER) */
-    #modals-root, #login-root { position: fixed; inset: 0; pointer-events: none !important; z-index: 9999; }
-    .modal-backdrop, .login-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; padding: 1rem; pointer-events: auto !important; }
-    .modal-backdrop.hidden, .login-backdrop.hidden, [id^="modal-"].hidden, #login-modal.hidden { display: none !important; pointer-events: none !important; visibility: hidden !important; }
-    
-    .modal-box, .login-box { background: #ffffff; border-radius: 0.75rem; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); padding: 1.5rem; pointer-events: auto !important; }
-    .modal-lg { max-width: 750px; }
+    /* MODAL */
+    .modal-backdrop { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 1rem; }
+    .modal-box { background: #ffffff; border-radius: 0.75rem; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15); padding: 1.5rem; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .btn-close { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
     .form-group { margin-bottom: 1rem; }
@@ -91,26 +79,219 @@
 </head>
 <body>
 
-  <!-- Header Root -->
-  <div id="header-root"></div>
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <button type="button" class="header-menu-btn" onclick="window.toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="header-brand">
+        <h1>Posta POS</h1>
+        <div class="header-meta" id="header-store-name">Sistem Cloud POS</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn-shift" onclick="window.openModal('modal-shift')">
+        <i class="fa-solid fa-clock"></i> <span id="shift-status-text">Shift Kasir</span>
+      </button>
+    </div>
+  </header>
 
-  <!-- Main App Layout -->
+  <!-- MAIN LAYOUT -->
   <div class="app-layout">
-    <div id="sidebar-root"></div>
+    
+    <!-- SIDEBAR DRAWER -->
+    <aside id="sidebar-drawer">
+      <div class="sidebar-header">
+        <h2>Menu Utama</h2>
+        <button type="button" class="sidebar-close-btn" onclick="window.toggleSidebar(false)">&times;</button>
+      </div>
+      <div class="sidebar-menu">
+        <div class="sidebar-section-title">Navigasi</div>
+        <button type="button" class="sidebar-link" data-view="admin"><i class="fa-solid fa-gauge"></i> Dashboard Superadmin</button>
+        <button type="button" class="sidebar-link" data-view="pos"><i class="fa-solid fa-cash-register"></i> Kasir (POS)</button>
+        <button type="button" class="sidebar-link" data-view="products"><i class="fa-solid fa-box"></i> Master Produk</button>
+        <button type="button" class="sidebar-link" data-view="history"><i class="fa-solid fa-receipt"></i> Riwayat Transaksi</button>
+        <button type="button" class="sidebar-link" data-view="reports"><i class="fa-solid fa-chart-line"></i> Laporan</button>
+      </div>
+    </aside>
 
-    <main id="main-content" class="main-content">
-      <div id="view-admin" class="app-view hidden"></div>
-      <div id="view-pos" class="app-view hidden"></div>
-      <div id="view-products" class="app-view hidden"></div>
-      <div id="view-history" class="app-view hidden"></div>
-      <div id="view-reports" class="app-view hidden"></div>
+    <!-- VIEWS CONTAINER -->
+    <main class="main-content">
+      
+      <!-- 1. VIEW ADMIN / SUPERADMIN DASHBOARD -->
+      <div id="view-admin" class="app-view">
+        <div class="view-header">
+          <div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: #0f172a;">Developer & Multi-Store Dashboard</h2>
+            <p class="subtitle">Kelola subdomain toko, database multi-tenant, dan pengguna sistem</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-primary" onclick="window.openModal('modal-tenant')">+ Buat Toko Baru</button>
+            <button type="button" class="btn btn-secondary" onclick="window.openModal('modal-user')">+ Buat User</button>
+          </div>
+        </div>
+
+        <!-- Tabel Toko -->
+        <div class="card">
+          <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Daftar Toko Terdaftar</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Toko</th>
+                  <th>Subdomain / URL</th>
+                  <th>Total Produk</th>
+                  <th>Total Transaksi</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tenants-table-body">
+                <tr><td colspan="5" class="text-center" style="padding: 1rem;">Memuat data toko...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tabel User -->
+        <div class="card">
+          <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Daftar User & Akses</h3>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Lengkap</th>
+                  <th>Role</th>
+                  <th>Toko Asal</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table-body">
+                <tr><td colspan="4" class="text-center" style="padding: 1rem;">Memuat user...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. VIEW POS (KASIR) -->
+      <div id="view-pos" class="app-view hidden">
+        <div class="view-header">
+          <div>
+            <h2>Mesin Kasir (POS)</h2>
+            <p class="subtitle">Pilih produk atau scan barcode</p>
+          </div>
+        </div>
+        <div class="card">
+          <div id="pos-product-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+            <!-- Diisi otomatis oleh POS JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. VIEW PRODUCTS -->
+      <div id="view-products" class="app-view hidden">
+        <div class="view-header">
+          <h2>Master Produk & Stok</h2>
+          <button type="button" class="btn btn-primary" onclick="window.openModal('modal-product')">+ Tambah Produk</button>
+        </div>
+        <div class="card">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Nama Produk</th>
+                  <th>Harga Beli</th>
+                  <th>Harga Jual</th>
+                  <th>Stok</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="product-table-body">
+                <!-- Diisi JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
-  <!-- Modal & Login Root Containers -->
-  <div id="modals-root"></div>
-  <div id="login-root"></div>
+  <!-- ==========================================
+       MODALS DI BAWAH INI (LANGSUNG TERSEDIA)
+       ========================================== -->
 
-  <script type="module" src="/js/app.js"></script>
+  <!-- Modal Tambah Toko -->
+  <div id="modal-tenant" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Buat Toko Baru</h3>
+        <button type="button" class="btn-close" onclick="window.closeModal('modal-tenant')">&times;</button>
+      </div>
+      <form onsubmit="window.handleTenantSubmit(event)">
+        <div class="form-group">
+          <label>Nama Toko</label>
+          <input type="text" id="tenant-name" class="form-control" required placeholder="Contoh: Toko Berkah" />
+        </div>
+        <div class="form-group">
+          <label>Subdomain (gpro.my.id)</label>
+          <input type="text" id="tenant-subdomain" class="form-control" required placeholder="Contoh: berkah" />
+        </div>
+        <div class="form-group">
+          <label>Alamat Toko</label>
+          <input type="text" id="tenant-address" class="form-control" placeholder="Alamat lengkap (opsional)" />
+        </div>
+        <div class="form-group">
+          <label>Nomor Telepon</label>
+          <input type="text" id="tenant-phone" class="form-control" placeholder="08xxxxxxxx" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="window.closeModal('modal-tenant')">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan Toko</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Tambah User -->
+  <div id="modal-user" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Buat Pengguna Sistem</h3>
+        <button type="button" class="btn-close" onclick="window.closeModal('modal-user')">&times;</button>
+      </div>
+      <form onsubmit="window.handleUserSubmit(event)">
+        <div class="form-group">
+          <label>Nama Lengkap</label>
+          <input type="text" id="user-name" class="form-control" required placeholder="Nama user" />
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="user-username" class="form-control" required placeholder="username_login" />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="user-password" class="form-control" required placeholder="Minimal 6 karakter" />
+        </div>
+        <div class="form-group">
+          <label>Role / Peran</label>
+          <select id="user-role" class="form-control">
+            <option value="CASHIER">Kasir (CASHIER)</option>
+            <option value="ADMIN">Admin Toko (ADMIN)</option>
+            <option value="SUPERADMIN">Developer (SUPERADMIN)</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="window.closeModal('modal-user')">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Entry Script -->
+  <script type="module" src="/js/app.js?v=20260830"></script>
 </body>
 </html>
