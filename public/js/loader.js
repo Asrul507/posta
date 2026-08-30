@@ -28,16 +28,18 @@ export async function loadComponents() {
       const res = await fetch(`/components/${comp.file}`);
       if (res.ok) {
         el.innerHTML = await res.text();
+      } else {
+        console.warn(`Gagal memuat /components/${comp.file} (HTTP ${res.status})`);
       }
     } catch (e) {
-      console.error(`Gagal load ${comp.file}:`, e);
+      console.error(`Error fetch ${comp.file}:`, e);
     }
   });
 
   await Promise.all(promises);
 
-  // Pastikan seluruh modal memiliki class hidden agar tidak memblokir layar
-  document.querySelectorAll('.modal-backdrop, [id^="modal-"]').forEach(m => {
+  // Pastikan SEMUA modal & backdrop tersembunyi secara default agar tidak memblokir klik layar
+  document.querySelectorAll('.modal-backdrop, .login-backdrop, [id^="modal-"], #login-modal').forEach(m => {
     m.classList.add('hidden');
   });
 }
