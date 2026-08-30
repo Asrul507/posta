@@ -3,26 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Posta POS - Cloud System</title>
+  <title>Posta POS - Cloud POS System</title>
   
-  <!-- Tailwind CSS & FontAwesome -->
-
+  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Posta Native CSS -->
   <link rel="stylesheet" href="/css/style.css" />
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased h-screen overflow-hidden flex flex-col font-sans">
+<body>
 
   <!-- Header Root -->
-  <div id="header-root" class="w-full z-20 flex-shrink-0"></div>
+  <div id="header-root"></div>
 
-  <!-- Layout Tengah -->
-  <div class="flex flex-1 overflow-hidden relative">
-    
+  <!-- Main App Layout Wrapper -->
+  <div class="app-layout">
     <!-- Sidebar Root -->
-    <div id="sidebar-root" class="z-30"></div>
+    <div id="sidebar-root"></div>
 
-    <!-- Main Views Container -->
-    <main id="main-content" class="flex-1 overflow-y-auto p-4 md:p-6 relative bg-slate-50">
+    <!-- Main Content Area -->
+    <main id="main-content" class="main-content">
       <div id="view-admin" class="app-view hidden"></div>
       <div id="view-pos" class="app-view hidden"></div>
       <div id="view-products" class="app-view hidden"></div>
@@ -31,12 +30,9 @@
     </main>
   </div>
 
-  <!-- Modals & Login Container -->
+  <!-- Modals & Login Root -->
   <div id="modals-root"></div>
   <div id="login-root"></div>
-
-  <!-- Audio Alerts (Opsional) -->
-  <audio id="snd-beep" src="/audio/beep.mp3" preload="auto"></audio>
 
   <!-- App Entry Script -->
   <script type="module" src="/js/app.js"></script>
