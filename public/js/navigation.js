@@ -1,6 +1,4 @@
 import { state } from './state.js';
-import { initAdminView } from './views/admin.js';
-import { initReports } from './views/reports.js';
 import { checkAndRestoreShift } from './views/shifts.js';
 
 export function navigateTo(viewName) {
@@ -27,18 +25,23 @@ export function navigateTo(viewName) {
         }
     });
 
-    // Panggil refresh data sesuai halaman yang dituju
+    // Panggil init view secara aman jika fungsi tersedia di window atau modul
     if (viewName === 'admin') {
-        if (typeof initAdminView === 'function') initAdminView();
+        if (window.postaAdmin && typeof window.postaAdmin.initAdminView === 'function') {
+            window.postaAdmin.initAdminView();
+        }
     } else if (viewName === 'reports' || viewName === 'reports-daily' || viewName === 'reports-monthly') {
-        if (typeof initReports === 'function') initReports();
+        if (window.postaReports && typeof window.postaReports.initReports === 'function') {
+            window.postaReports.initReports();
+        }
     } else if (viewName === 'pos') {
-        if (typeof checkAndRestoreShift === 'function') checkAndRestoreShift();
+        if (typeof checkAndRestoreShift === 'function') {
+            checkAndRestoreShift();
+        }
     }
 }
 
 export function initNavigation() {
-    // Hubungkan semua elemen dengan atribut data-view atau onclick navigasi
     document.querySelectorAll('[data-view]').forEach(btn => {
         if (!btn.dataset.navBound) {
             btn.dataset.navBound = 'true';
