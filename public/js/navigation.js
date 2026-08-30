@@ -1,4 +1,3 @@
-// public/js/navigation.js
 import { state } from './state.js';
 import { initAdminView } from './views/admin.js';
 import { initReports } from './views/reports.js';
@@ -17,7 +16,7 @@ export function navigateTo(viewName) {
         target.classList.remove('hidden');
     }
 
-    // Update status menu aktif di sidebar
+    // Update style link aktif di sidebar
     document.querySelectorAll('.sidebar-link').forEach(link => {
         if (link.dataset.view === viewName) {
             link.classList.add('bg-blue-50', 'text-blue-600', 'font-semibold');
@@ -28,7 +27,7 @@ export function navigateTo(viewName) {
         }
     });
 
-    // Jalankan inisialisasi view yang sesuai
+    // Panggil refresh data sesuai halaman yang dituju
     if (viewName === 'admin') {
         if (typeof initAdminView === 'function') initAdminView();
     } else if (viewName === 'reports' || viewName === 'reports-daily' || viewName === 'reports-monthly') {
@@ -39,6 +38,7 @@ export function navigateTo(viewName) {
 }
 
 export function initNavigation() {
+    // Hubungkan semua elemen dengan atribut data-view atau onclick navigasi
     document.querySelectorAll('[data-view]').forEach(btn => {
         if (!btn.dataset.navBound) {
             btn.dataset.navBound = 'true';
