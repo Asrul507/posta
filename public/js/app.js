@@ -5,19 +5,26 @@ import { checkAuth } from './views/auth.js';
 import { initNavigation } from './navigation.js';
 
 // =========================================================================
-// MODAL & SIDEBAR CONTROLLERS
+// MODAL & SIDEBAR CONTROLLER NATIVE POSTA
 // =========================================================================
 window.openModal = function(modalId) {
-  const modal = document.getElementById(modalId);
+  // Dukung alternatif nama ID modal
+  let modal = document.getElementById(modalId);
+  if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
+  if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
+
   if (modal) {
     modal.classList.remove('hidden');
+    // Jika modal menggunakan class modal-backdrop
     modal.style.display = 'flex';
-    modal.style.zIndex = '9999';
   }
 };
 
 window.closeModal = function(modalId) {
-  const modal = document.getElementById(modalId);
+  let modal = document.getElementById(modalId);
+  if (!modal && modalId === 'modal-tenant') modal = document.getElementById('modal-create-tenant');
+  if (!modal && modalId === 'modal-user') modal = document.getElementById('modal-create-user');
+
   if (modal) {
     modal.classList.add('hidden');
     modal.style.display = 'none';
@@ -36,15 +43,15 @@ window.toggleSidebar = function(forceState) {
 };
 
 // =========================================================================
-// INISIALISASI UTAMA APLIKASI
+// INISIALISASI APLIKASI
 // =========================================================================
 async function initApp() {
-  console.log('Posta POS App Initializing...');
+  console.log('Posta POS Initializing...');
 
-  // 1. Muat template partial HTML
+  // 1. Muat komponen HTML
   await loadComponents();
 
-  // 2. Ambil informasi toko / tenant
+  // 2. Ambil informasi tenant
   try {
     const tenantInfo = await api('/api/tenant/info', 'GET');
     if (tenantInfo && tenantInfo.data) {
@@ -54,19 +61,19 @@ async function initApp() {
     console.warn('Gagal memuat tenant info:', err);
   }
 
-  // 3. Cek status autentikasi login
-  const isAuthenticated = checkAuth();
+  // 3. Cek autentikasi login
+  checkAuth();
 
-  // 4. Jalankan navigasi
+  // 4. Inisialisasi navigasi
   initNavigation();
 
-  // 5. Setup event tombol shift & header
+  // 5. Setup tombol header
   setupGlobalEvents();
 }
 
 function setupGlobalEvents() {
-  const menuButtons = document.querySelectorAll('.header-menu-btn, .btn-menu-toggle');
-  menuButtons.forEach(btn => {
+  const menuBtns = document.querySelectorAll('.header-menu-btn, .btn-menu-toggle');
+  menuBtns.forEach(btn => {
     btn.onclick = () => window.toggleSidebar();
   });
 
