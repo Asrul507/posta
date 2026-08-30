@@ -29,18 +29,19 @@ export async function loadComponents() {
       if (res.ok) {
         el.innerHTML = await res.text();
       } else {
-        console.warn(`Gagal memuat /components/${comp.file} (HTTP ${res.status})`);
+        console.warn(`Gagal memuat /components/${comp.file} (Status: ${res.status})`);
       }
     } catch (e) {
-      console.error(`Error fetch ${comp.file}:`, e);
+      console.error(`Gagal load ${comp.file}:`, e);
     }
   });
 
   await Promise.all(promises);
 
-  // Pastikan SEMUA modal & backdrop tersembunyi secara default agar tidak memblokir klik layar
-  document.querySelectorAll('.modal-backdrop, .login-backdrop, [id^="modal-"], #login-modal').forEach(m => {
+  // KUNCI: Sembunyikan semua modal & login backdrop dan nonaktifkan pointerEvents bawaan
+  document.querySelectorAll('.modal-backdrop, .login-backdrop, [id^="modal-"], #login-modal, #modal-container').forEach(m => {
     m.classList.add('hidden');
+    m.style.pointerEvents = 'none';
   });
 }
 
