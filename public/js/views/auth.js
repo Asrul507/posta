@@ -1,137 +1,88 @@
-import { state, showToast } from '../state.js';
-import { updateHeaderShiftStatus } from './shifts.js';
+import { api } from '../api.js';
+import { state } from '../state.js';
+import { navigateTo } from '../navigation.js';
+import { checkAndRestoreShift, updateHeaderShiftStatus } from './shifts.js';
 
-export async function checkAuthSession(tenantInfo) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const ssoToken = urlParams.get('sso_token');
-
-  if (ssoToken) {
-    try {
-      const parts = ssoToken.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        localStorage.setItem('posta_token', ssoToken);
-        localStorage.setItem('posta_user', JSON.stringify(payload));
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-    } catch (_) {}
+export function initAuth() {
+  const loginForm = document.getElementById('login-form');
+  if (loginForm && !loginForm.dataset.bound) {
+    loginForm.dataset.bound = 'true';
+    loginForm.addEventListener('submit', handleLogin);
   }
 
-  const token = localStorage.getItem('posta_token');
-  const userJson = localStorage.getItem('posta_user');
-  const loginOverlay = document.getElementById('login-overlay');
-
-  const domainSpan = document.getElementById('login-current-domain');
-  if (domainSpan) domainSpan.innerText = window.location.hostname;
-
-  if (!token || !userJson) {
-    if (loginOverlay) loginOverlay.classList.remove('hidden');
-    return false;
-  }
-
-  try {
-    const user = JSON.parse(userJson);
-    
-    if (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id && user.role !== 'SUPERADMIN') {
-      logout();
-      return false;
-    }
-
-    state.currentUser = user;
-    state.tenantId = tenantInfo.id;
-    applyRolePermissions(user);
-    updateHeaderShiftStatus();
-
-    if (loginOverlay) loginOverlay.classList.add('hidden');
-
-    if (user.role !== 'SUPERADMIN' && typeof window.checkActiveShift === 'function') {
-      window.checkActiveShift();
-    }
-
-    return true;
-  } catch (e) {
-    logout();
-    return false;
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn && !logoutBtn.dataset.bound) {
+    logoutBtn.dataset.bound = 'true';
+    logoutBtn.addEventListener('click', handleLogout);
   }
 }
 
-export async function submitLogin() {
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value.trim();
+async function handleLogin(e) {
+  e.preventDefault();
+  const usernameInput = document.getElementById('input-username');
+  const passwordInput = document.getElementById('input-password');
+  const errorMsg = document.getElementById('login-error-msg');
 
-  if (!username || !password) {
-    showToast('Username dan password wajib diisi!', 'error');
-    return;
-  }
-
-  const btn = document.getElementById('btn-submit-login');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memvalidasi...';
+  if (errorMsg) errorMsg.classList.add('hidden');
 
   try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+    const res = await api('/api/auth/login', 'POST', {
+      username: usernameInput.value,
+      password: passwordInput.value
     });
-    const result = await res.json();
 
-    if (result.success) {
-      localStorage.setItem('posta_token', result.token);
-      localStorage.setItem('posta_user', JSON.stringify(result.user));
-      state.currentUser = result.user;
-      state.tenantId = result.user.tenant_id;
+    if (res && res.success) {
+      state.token = res.token;
+      state.user = res.user;
 
-      document.getElementById('login-overlay').classList.add('hidden');
-      applyRolePermissions(result.user);
-      updateHeaderShiftStatus();
-      showToast(`Selamat datang, ${result.user.name}!`);
+      localStorage.setItem('posta_token', res.token);
+      localStorage.setItem('posta_user', JSON.stringify(res.user));
 
-      if (result.user.role === 'SUPERADMIN') {
-        document.getElementById('view-admin-portal').classList.remove('hidden');
-        if (typeof window.loadAdminTenants === 'function') window.loadAdminTenants();
+      // Tampilkan UI Aplikasi Utama
+      document.getElementById('auth-container')?.classList.add('hidden');
+      document.getElementById('main-layout')?.classList.remove('hidden');
+
+      // Update info header user
+      const headerUser = document.getElementById('header-user-name');
+      if (headerUser) headerUser.textContent = `${res.user.name} (${res.user.role})`;
+
+      // Penyesuaian Routing Berdasarkan Role
+      if (res.user.role === 'CASHIER') {
+        navigateTo('pos');
+        await checkAndRestoreShift();
       } else {
-        if (typeof window.loadProducts === 'function') window.loadProducts();
-        if (typeof window.checkActiveShift === 'function') window.checkActiveShift();
+        // ADMIN, OWNER, SUPERADMIN langsung ke Dashboard Admin
+        navigateTo('admin');
+        updateHeaderShiftStatus(null);
       }
     } else {
-      showToast(result.error || 'Username atau password salah', 'error');
+      if (errorMsg) {
+        errorMsg.textContent = res?.error || 'Login gagal, periksa username & password.';
+        errorMsg.classList.remove('hidden');
+      }
     }
   } catch (err) {
-    showToast('Gagal menghubungi server.', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<span>Masuk Sekarang</span> <i class="fa-solid fa-arrow-right"></i>';
+    console.error('Login error:', err);
+    if (errorMsg) {
+      errorMsg.textContent = 'Terjadi kesalahan jaringan atau server.';
+      errorMsg.classList.remove('hidden');
+    }
   }
 }
 
-export function toggleLoginPasswordVisibility() {
-  const pass = document.getElementById('login-password');
-  const eye = document.getElementById('login-eye-icon');
-  if (pass.type === 'password') {
-    pass.type = 'text';
-    eye.className = 'fa-solid fa-eye-slash';
-  } else {
-    pass.type = 'password';
-    eye.className = 'fa-solid fa-eye';
-  }
-}
+export function handleLogout() {
+  state.token = null;
+  state.user = null;
+  state.activeShift = null;
 
-export function logout() {
   localStorage.removeItem('posta_token');
   localStorage.removeItem('posta_user');
-  location.reload();
+
+  document.getElementById('main-layout')?.classList.add('hidden');
+  document.getElementById('auth-container')?.classList.remove('hidden');
 }
 
-export function applyRolePermissions(user) {
-  const nameLabels = document.querySelectorAll('.current-user-name');
-  nameLabels.forEach(el => el.innerText = `${user.name} (${user.role})`);
-
-  if (user.role === 'CASHIER') {
-    const restricted = document.querySelectorAll('.role-admin-only');
-    restricted.forEach(el => el.classList.add('hidden'));
-  } else {
-    const restricted = document.querySelectorAll('.role-admin-only');
-    restricted.forEach(el => el.classList.remove('hidden'));
-  }
-}
+window.postaAuth = {
+  initAuth,
+  handleLogout
+};
