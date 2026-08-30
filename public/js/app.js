@@ -1,58 +1,52 @@
-import { loadComponent } from './loader.js';
-import { toggleSidebar, switchView, toggleMobileCartDrawer } from './navigation.js';
-import * as pos from './views/pos.js';
-import * as checkout from './views/checkout.js';
-import * as po from './views/po.js';
-import * as reports from './views/reports.js';
-import * as scanner from './scanner.js';
-import * as admin from './views/admin.js';
-import * as auth from './views/auth.js';
-import * as shifts from './views/shifts.js';
+import { state } from './state.js';
+import { loadComponents } from './loader.js';
+import { initAuth } from './views/auth.js';
+import { navigateTo, initNavigation } from './navigation.js';
+import { checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
 
-// 1. Daftarkan semua modul ke window
-Object.assign(window, {
-  toggleSidebar,
-  switchView,
-  toggleMobileCartDrawer,
-  ...pos,
-  ...checkout,
-  ...po,
-  ...reports,
-  ...scanner,
-  ...admin,
-  ...auth,
-  ...shifts
-});
-
-// 2. Inisialisasi: Tunggu komponen HTML termuat SEMPURNA sebelum menjalankan logic
-window.addEventListener('DOMContentLoaded', async () => {
+async function bootstrap() {
   try {
-    await Promise.all([
-      loadComponent('comp-login', '/components/login.html'),
-      loadComponent('comp-sidebar', '/components/sidebar.html'),
-      loadComponent('comp-header', '/components/header.html'),
-      loadComponent('comp-view-pos', '/components/view-pos.html'),
-      loadComponent('comp-view-products', '/components/view-products.html'),
-      loadComponent('comp-view-history', '/components/view-history.html'),
-      loadComponent('comp-view-reports', '/components/view-reports.html'),
-      loadComponent('comp-view-admin', '/components/view-admin.html'),
-      loadComponent('comp-modals', '/components/modals.html')
-    ]);
+    // 1. Muat template komponen HTML
+    await loadComponents();
+
+    // 2. Inisialisasi autentikasi & event listener navigasi
+    initAuth();
+    if (typeof initNavigation === 'function') {
+      initNavigation();
+    }
+
+    // 3. Periksa token tersimpan di LocalStorage
+    const savedToken = localStorage.getItem('posta_token');
+    const savedUser = localStorage.getItem('posta_user');
+
+    if (savedToken && savedUser) {
+      state.token = savedToken;
+      state.user = JSON.parse(savedUser);
+
+      document.getElementById('auth-container')?.classList.add('hidden');
+      document.getElementById('main-layout')?.classList.remove('hidden');
+
+      const headerUser = document.getElementById('header-user-name');
+      if (headerUser) {
+        headerUser.textContent = `${state.user.name} (${state.user.role})`;
+      }
+
+      // Arahkan ke halaman sesuai Role
+      if (state.user.role === 'CASHIER') {
+        navigateTo('pos');
+        await checkAndRestoreShift();
+      } else {
+        // ADMIN, OWNER, SUPERADMIN langsung ke Dashboard Admin
+        navigateTo('admin');
+        updateHeaderShiftStatus(null);
+      }
+    } else {
+      document.getElementById('auth-container')?.classList.remove('hidden');
+      document.getElementById('main-layout')?.classList.add('hidden');
+    }
   } catch (err) {
-    console.error("Gagal memuat komponen HTML:", err);
+    console.error('Bootstrap application failed:', err);
   }
+}
 
-  // Jalankan inisialisasi kasir & scanner hardware
-  try {
-    pos.loadProducts();
-    scanner.initHardwareScannerListener();
-  } catch (e) {
-    console.error("Init POS Error:", e);
-  }
-
-  // Pasang event listener search input
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    searchInput.addEventListener('input', pos.renderProductGrid);
-  }
-});
+document.addEventListener('DOMContentLoaded', bootstrap);
