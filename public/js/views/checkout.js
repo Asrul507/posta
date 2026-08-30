@@ -1,92 +1,161 @@
-import { state, formatRupiah, showToast } from '../state.js';
-import { clearCart, loadProducts } from './pos.js';
+import { state } from '../state.js';
+import { api } from '../api.js';
+import { playSuccessSound, playErrorSound } from '../audio.js';
+import { saveOfflineTransaction, syncOfflineTransactions } from '../db.js';
 
-let lastCompletedTransaction = null;
+let selectedPaymentMethod = 'cash';
+let currentReceiptData = null;
 
-export function openCheckoutModal() {
-  if (!state.cart || state.cart.length === 0) {
-    showToast('Keranjang masih kosong!', 'error');
-    return;
+// Dengarkan event online untuk otomatis sinkronisasi
+window.addEventListener('online', () => {
+  syncOfflineTransactions(api, (msg, type) => {
+    const toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = msg;
+      toast.className = `toast show ${type || ''}`;
+      setTimeout(() => toast.className = 'toast', 3000);
+    }
+  });
+});
+
+export function initCheckoutEvents() {
+  const btnCheckout = document.getElementById('btn-checkout');
+  const btnProcessPayment = document.getElementById('btn-process-payment');
+  const btnCancelCheckout = document.getElementById('btn-cancel-checkout');
+  const btnCloseReceipt = document.getElementById('btn-close-receipt');
+  const btnPrintReceipt = document.getElementById('btn-print-receipt');
+  const quickPayButtons = document.querySelectorAll('.quick-pay-btn');
+  const paymentMethodRadios = document.querySelectorAll('input[name="payment-method"]');
+  const cashInput = document.getElementById('cash-input');
+
+  if (btnCheckout) {
+    btnCheckout.addEventListener('click', openCheckoutModal);
   }
 
-  const modal = document.getElementById('checkout-modal');
-  const modalTotal = document.getElementById('modal-total-tagihan');
-  const cashInput = document.getElementById('cash-input');
-  const changeAmount = document.getElementById('modal-change-amount');
-  const btnPay = document.getElementById('btn-confirm-pay');
+  if (btnCancelCheckout) {
+    btnCancelCheckout.addEventListener('click', closeCheckoutModal);
+  }
 
-  const total = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+  if (btnCloseReceipt) {
+    btnCloseReceipt.addEventListener('click', closeReceiptModal);
+  }
 
-  if (modalTotal) modalTotal.innerText = formatRupiah(total);
-  if (cashInput) cashInput.value = '';
-  if (changeAmount) changeAmount.innerText = formatRupiah(0);
-  if (btnPay) btnPay.disabled = true;
+  if (btnPrintReceipt) {
+    btnPrintReceipt.addEventListener('click', printThermalReceipt);
+  }
 
-  if (modal) modal.classList.remove('hidden');
+  paymentMethodRadios.forEach((radio) => {
+    radio.addEventListener('change', (e) => {
+      selectedPaymentMethod = e.target.value;
+      const cashSection = document.getElementById('cash-payment-section');
+      const qrisSection = document.getElementById('qris-payment-section');
+
+      if (selectedPaymentMethod === 'cash') {
+        if (cashSection) cashSection.style.display = 'block';
+        if (qrisSection) qrisSection.style.display = 'none';
+      } else if (selectedPaymentMethod === 'qris') {
+        if (cashSection) cashSection.style.display = 'none';
+        if (qrisSection) qrisSection.style.display = 'block';
+      } else {
+        if (cashSection) cashSection.style.display = 'none';
+        if (qrisSection) qrisSection.style.display = 'none';
+      }
+      calculateChange();
+    });
+  });
+
+  quickPayButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const val = parseInt(btn.getAttribute('data-value'), 10);
+      if (cashInput) {
+        cashInput.value = val;
+        calculateChange();
+      }
+    });
+  });
+
+  if (cashInput) {
+    cashInput.addEventListener('input', calculateChange);
+  }
+
+  if (btnProcessPayment) {
+    btnProcessPayment.addEventListener('click', processCheckout);
+  }
 }
 
-export function closeCheckoutModal() {
-  const modal = document.getElementById('checkout-modal');
-  if (modal) modal.classList.add('hidden');
+function calculateTotal() {
+  return state.cart.reduce((sum, item) => sum + item.subtotal, 0);
 }
 
-export function setCashAmount(val) {
-  const total = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+function calculateChange() {
+  const total = calculateTotal();
   const cashInput = document.getElementById('cash-input');
-  if (!cashInput) return;
+  const changeDisplay = document.getElementById('change-display');
+  const btnProcessPayment = document.getElementById('btn-process-payment');
 
-  if (val === 'PAS') {
-    cashInput.value = total;
+  if (!cashInput || !changeDisplay) return;
+
+  if (selectedPaymentMethod === 'cash') {
+    const cash = parseFloat(cashInput.value) || 0;
+    const change = cash - total;
+    changeDisplay.textContent = `Kembalian: Rp ${Math.max(0, change).toLocaleString('id-ID')}`;
+
+    if (btnProcessPayment) {
+      btnProcessPayment.disabled = cash < total;
+    }
   } else {
-    cashInput.value = val;
-  }
-  calculateChange();
-}
-
-export function calculateChange() {
-  const total = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const cashInput = document.getElementById('cash-input');
-  const changeEl = document.getElementById('modal-change-amount');
-  const btnPay = document.getElementById('btn-confirm-pay');
-
-  const cash = parseFloat(cashInput?.value) || 0;
-  const change = cash - total;
-
-  if (changeEl) {
-    changeEl.innerText = formatRupiah(Math.max(0, change));
-  }
-
-  if (btnPay) {
-    btnPay.disabled = cash < total;
+    changeDisplay.textContent = 'Kembalian: Rp 0';
+    if (btnProcessPayment) {
+      btnProcessPayment.disabled = false;
+    }
   }
 }
 
-export async function submitTransaction() {
-  const total = state.cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-  const cashInput = document.getElementById('cash-input');
-  const cash = parseFloat(cashInput?.value) || 0;
-
-  if (cash < total) {
-    showToast('Nominal pembayaran kurang!', 'error');
+function openCheckoutModal() {
+  if (state.cart.length === 0) {
+    alert('Keranjang belanja masih kosong!');
     return;
   }
 
-  const btnPay = document.getElementById('btn-confirm-pay');
-  if (btnPay) {
-    btnPay.disabled = true;
-    btnPay.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+  const modal = document.getElementById('modal-checkout');
+  const total = calculateTotal();
+  const totalDisplay = document.getElementById('checkout-total-display');
+  const cashInput = document.getElementById('cash-input');
+
+  if (totalDisplay) {
+    totalDisplay.textContent = `Rp ${total.toLocaleString('id-ID')}`;
   }
 
-  const cashierName = state.currentUser?.name || 'Kasir';
-  const cartSnapshot = [...state.cart];
+  if (cashInput) {
+    cashInput.value = total;
+  }
 
-  try {
-      const payload = {
+  calculateChange();
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeCheckoutModal() {
+  const modal = document.getElementById('modal-checkout');
+  if (modal) modal.style.display = 'none';
+}
+
+function closeReceiptModal() {
+  const modal = document.getElementById('modal-receipt');
+  if (modal) modal.style.display = 'none';
+}
+
+async function processCheckout() {
+  const total = calculateTotal();
+  const cashInput = document.getElementById('cash-input');
+  const cashAmount = selectedPaymentMethod === 'cash' ? parseFloat(cashInput?.value || total) : total;
+  const changeAmount = selectedPaymentMethod === 'cash' ? Math.max(0, cashAmount - total) : 0;
+
+  const payload = {
     tenant_id: state.currentUser?.tenant_id || 'berkah',
     cashier_id: state.currentUser?.id || 'cashier',
     cashier_name: state.currentUser?.full_name || state.currentUser?.username || 'Kasir',
     shift_id: state.currentShift ? state.currentShift.id : null,
-    items: state.cart,
+    items: [...state.cart],
     payment_method: selectedPaymentMethod,
     cash_amount: cashAmount,
     change_amount: changeAmount,
@@ -94,98 +163,153 @@ export async function submitTransaction() {
     customer_name: 'Pelanggan Umum',
   };
 
+  const btnProcessPayment = document.getElementById('btn-process-payment');
+  if (btnProcessPayment) {
+    btnProcessPayment.disabled = true;
+    btnProcessPayment.textContent = 'Memproses...';
+  }
 
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+  try {
+    let result;
+    if (navigator.onLine) {
+      try {
+        result = await api.post('/api/checkout', payload);
+      } catch (networkErr) {
+        // Fallback jika API gagal diakses
+        console.warn('Jaringan gagal, menyimpan transaksi secara lokal ke IndexedDB...');
+        await saveOfflineTransaction(payload);
+        result = {
+          success: true,
+          invoice_number: 'OFFLINE-' + Date.now().toString().slice(-6),
+          final_amount: total,
+          change_amount: changeAmount,
+          is_offline: true
+        };
+      }
+    } else {
+      // Benar-benar sedang offline
+      await saveOfflineTransaction(payload);
+      result = {
+        success: true,
+        invoice_number: 'OFFLINE-' + Date.now().toString().slice(-6),
+        final_amount: total,
+        change_amount: changeAmount,
+        is_offline: true
+      };
+    }
 
-    const result = await res.json();
-
-    if (result.success) {
-      showToast('Transaksi Berhasil Disimpan!');
-      closeCheckoutModal();
-
-      // Simpan data untuk render struk
-      lastCompletedTransaction = {
-        invoice_number: result.invoice_number || ('INV-' + Date.now().toString().slice(-6)),
+    if (result && result.success) {
+      playSuccessSound();
+      currentReceiptData = {
+        invoice: result.invoice_number,
         date: new Date().toLocaleString('id-ID'),
-        items: cartSnapshot,
-        total_amount: total,
-        paid_amount: cash,
-        change_amount: cash - total,
-        cashier_name: cashierName,
-        tenant_info: state.tenantInfo || {}
+        cashier: payload.cashier_name,
+        customer: payload.customer_name,
+        items: payload.items,
+        total: result.final_amount,
+        payment_method: payload.payment_method,
+        cash: payload.cash_amount,
+        change: result.change_amount,
+        is_offline: result.is_offline || false
       };
 
-      // Bersihkan keranjang & perbarui stok
-      clearCart();
-      loadProducts();
-
-      // Tampilkan Modal Struk Otomatis
-      renderAndShowReceipt(lastCompletedTransaction);
-    } else {
-      showToast('Gagal: ' + (result.error || 'Terjadi kesalahan'), 'error');
+      closeCheckoutModal();
+      state.clearCart();
+      showReceiptModal(currentReceiptData);
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    playErrorSound();
+    alert('Gagal memproses pembayaran: ' + err.message);
   } finally {
-    if (btnPay) {
-      btnPay.disabled = false;
-      btnPay.innerHTML = '<i class="fa-solid fa-check"></i> <span>Selesaikan Transaksi</span>';
+    if (btnProcessPayment) {
+      btnProcessPayment.disabled = false;
+      btnProcessPayment.textContent = 'Selesaikan Pembayaran';
     }
   }
 }
 
-// =========================================================================
-// LOGIKA STRUK KASIR (RENDER & CETAK)
-// =========================================================================
-export function renderAndShowReceipt(data) {
-  if (!data) return;
+function showReceiptModal(data) {
+  const modal = document.getElementById('modal-receipt');
+  const receiptContainer = document.getElementById('receipt-print-area');
 
-  const tInfo = data.tenant_info;
-  const elStoreName = document.getElementById('rec-store-name');
-  const elStoreAddress = document.getElementById('rec-store-address');
-  const elStorePhone = document.getElementById('rec-store-phone');
-  const elInvoice = document.getElementById('rec-invoice');
-  const elDate = document.getElementById('rec-date');
-  const elCashier = document.getElementById('rec-cashier');
-  const elList = document.getElementById('rec-items-list');
-  const elSubtotal = document.getElementById('rec-subtotal');
-  const elPaid = document.getElementById('rec-paid');
-  const elChange = document.getElementById('rec-change');
-
-  if (elStoreName) elStoreName.innerText = tInfo.name || 'POSTA POS';
-  if (elStoreAddress) elStoreAddress.innerText = tInfo.address || 'Alamat Toko';
-  if (elStorePhone) elStorePhone.innerText = tInfo.phone ? `Telp: ${tInfo.phone}` : '';
-  if (elInvoice) elInvoice.innerText = data.invoice_number;
-  if (elDate) elDate.innerText = data.date;
-  if (elCashier) elCashier.innerText = data.cashier_name;
-
-  if (elList) {
-    elList.innerHTML = data.items.map(item => `
-      <div class="grid grid-cols-12 gap-1 items-start">
-        <div class="col-span-6 truncate font-medium">${item.name}</div>
-        <div class="col-span-2 text-center font-bold">${item.qty}</div>
-        <div class="col-span-4 text-right">${formatRupiah(item.price * item.qty)}</div>
+  if (receiptContainer) {
+    let itemsHtml = data.items.map(item => `
+      <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;">
+        <span>${item.name} x${item.quantity}</span>
+        <span>Rp ${item.subtotal.toLocaleString('id-ID')}</span>
       </div>
     `).join('');
+
+    receiptContainer.innerHTML = `
+      <div style="text-align: center; margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 16px;">POSTA POS</h3>
+        <p style="margin: 2px 0; font-size: 11px;">${data.date}</p>
+        <p style="margin: 2px 0; font-size: 11px;">No: ${data.invoice} ${data.is_offline ? '<b style="color:orange;">(OFFLINE)</b>' : ''}</p>
+        <p style="margin: 2px 0; font-size: 11px;">Kasir: ${data.cashier}</p>
+      </div>
+      <hr style="border-top: 1px dashed #bbb; margin: 6px 0;">
+      <div>${itemsHtml}</div>
+      <hr style="border-top: 1px dashed #bbb; margin: 6px 0;">
+      <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
+        <span>TOTAL:</span>
+        <span>Rp ${data.total.toLocaleString('id-ID')}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
+        <span>Metode:</span>
+        <span>${data.payment_method.toUpperCase()}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px;">
+        <span>Bayar:</span>
+        <span>Rp ${data.cash.toLocaleString('id-ID')}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 12px;">
+        <span>Kembalian:</span>
+        <span>Rp ${data.change.toLocaleString('id-ID')}</span>
+      </div>
+      <hr style="border-top: 1px dashed #bbb; margin: 8px 0;">
+      <p style="text-align: center; font-size: 11px; margin: 0;">Terima kasih atas kunjungan Anda!</p>
+    `;
   }
 
-  if (elSubtotal) elSubtotal.innerText = formatRupiah(data.total_amount);
-  if (elPaid) elPaid.innerText = formatRupiah(data.paid_amount);
-  if (elChange) elChange.innerText = formatRupiah(data.change_amount);
-
-  const receiptModal = document.getElementById('receipt-modal');
-  if (receiptModal) receiptModal.classList.remove('hidden');
+  if (modal) modal.style.display = 'flex';
 }
 
-export function closeReceiptModal() {
-  const receiptModal = document.getElementById('receipt-modal');
-  if (receiptModal) receiptModal.classList.add('hidden');
-}
+function printThermalReceipt() {
+  const receiptArea = document.getElementById('receipt-print-area');
+  if (!receiptArea) return;
 
-export function printReceipt() {
-  window.print();
+  const printWindow = window.open('', '_blank', 'width=350,height=600');
+  if (printWindow) {
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Struk Pembayaran</title>
+          <style>
+            @page { margin: 0; size: 58mm auto; }
+            body { 
+              font-family: 'Courier New', Courier, monospace; 
+              font-size: 12px; 
+              width: 58mm; 
+              margin: 0; 
+              padding: 6px; 
+              color: #000;
+            }
+            @media print {
+              body { width: 58mm; }
+            }
+          </style>
+        </head>
+        <body>
+          ${receiptArea.innerHTML}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
 }
