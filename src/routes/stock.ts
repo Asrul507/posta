@@ -1,4 +1,3 @@
-// src/routes/stock.ts
 import { Hono } from 'hono';
 import { recordStockMovement } from '../services/inventory';
 
@@ -8,7 +7,7 @@ type Bindings = {
 
 export const stockRoute = new Hono<{ Bindings: Bindings }>();
 
-// 1. Endpoint Penyesuaian Stok Manual / Stock Opname
+// Penyesuaian Stok Manual / Stock Opname
 stockRoute.post('/adjust', async (c) => {
   try {
     const body = await c.req.json();
@@ -22,7 +21,7 @@ stockRoute.post('/adjust', async (c) => {
       productId,
       qtyChange: Number(diffQty),
       type: 'ADJUSTMENT',
-      notes: reason || 'Koreksi stok manual / opname'
+      notes: reason || 'Koreksi stok manual'
     });
 
     return c.json({
@@ -35,7 +34,7 @@ stockRoute.post('/adjust', async (c) => {
   }
 });
 
-// 2. Ambil riwayat audit log stok berdasarkan Product ID
+// Ambil riwayat log per produk
 stockRoute.get('/history/:productId', async (c) => {
   try {
     const productId = c.req.param('productId');
@@ -60,7 +59,7 @@ stockRoute.get('/history/:productId', async (c) => {
   }
 });
 
-// 3. Ambil ringkasan seluruh pergerakan stok terbaru
+// Ambil semua log mutasi terbaru
 stockRoute.get('/logs', async (c) => {
   try {
     const logs = await c.env.DB
