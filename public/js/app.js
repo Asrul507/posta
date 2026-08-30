@@ -1,18 +1,28 @@
-// public/js/app.js
 import { state } from './state.js';
 import { loadComponents } from './loader.js';
 import { initAuth } from './views/auth.js';
 import { navigateTo, initNavigation } from './navigation.js';
-import { checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
+import { initShifts, checkAndRestoreShift, updateHeaderShiftStatus } from './views/shifts.js';
+import { initPOS } from './views/pos.js';
+import { initProducts } from './views/products.js';
+import { initPO } from './views/po.js';
+import { initReports } from './views/reports.js';
+import { initAdminView } from './views/admin.js';
 
 async function bootstrap() {
   try {
-    // 1. Muat komponen UI HTML
+    // 1. Muat seluruh komponen UI HTML
     await loadComponents();
 
-    // 2. Inisialisasi autentikasi & navigasi
+    // 2. Inisialisasi event listener seluruh modul view
     initAuth();
     initNavigation();
+    
+    if (typeof initPOS === 'function') initPOS();
+    if (typeof initProducts === 'function') initProducts();
+    if (typeof initPO === 'function') initPO();
+    if (typeof initReports === 'function') initReports();
+    if (typeof initShifts === 'function') initShifts();
 
     // 3. Periksa sesi login yang tersimpan
     const savedToken = localStorage.getItem('posta_token');
