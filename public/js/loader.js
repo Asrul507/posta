@@ -1,11 +1,11 @@
-// Daftar mapping ID container dan file template HTML komponen
+// public/js/loader.js
 const COMPONENTS = [
     { containerId: 'auth-container', file: 'components/login.html' },
     { containerId: 'header-container', file: 'components/header.html' },
     { containerId: 'sidebar-container', file: 'components/sidebar.html' },
     { containerId: 'modals-container', file: 'components/modals.html' },
     
-    // Sub-views halaman utama
+    // View Halaman Utama
     { containerId: 'content-container', file: 'components/view-pos.html', isView: true, viewId: 'view-pos' },
     { containerId: 'content-container', file: 'components/view-admin.html', isView: true, viewId: 'view-admin' },
     { containerId: 'content-container', file: 'components/view-products.html', isView: true, viewId: 'view-products' },
@@ -18,13 +18,12 @@ export async function loadComponents() {
         try {
             const response = await fetch(comp.file);
             if (!response.ok) {
-                console.warn(`Gagal memuat komponen: ${comp.file} (Status: ${response.status})`);
+                console.warn(`Gagal memuat: ${comp.file} (${response.status})`);
                 continue;
             }
             const html = await response.text();
 
             if (comp.isView) {
-                // Buat wrapper container untuk tiap halaman view agar bisa di hide/show
                 let viewWrapper = document.getElementById(comp.viewId);
                 if (!viewWrapper) {
                     viewWrapper = document.createElement('div');
@@ -49,12 +48,7 @@ export async function loadComponents() {
     }
 }
 
-// Alias ekspor agar kompatibel ke semua kemungkinan nama pemanggilan
 export const loadViews = loadComponents;
 export const initLoader = loadComponents;
 export const loadAllComponents = loadComponents;
 export default loadComponents;
-
-window.postaLoader = {
-    loadComponents
-};
