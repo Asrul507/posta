@@ -2,97 +2,96 @@ import { state } from './state.js';
 import { initAdminView } from './views/admin.js';
 
 // =========================================================================
-// NAVIGASI ANTAR VIEW
+// NAVIGASI VIEW
 // =========================================================================
 export function navigateTo(viewName) {
-  console.log('Navigasi ke:', viewName);
+  console.log('Navigasi aktif ke:', viewName);
 
-  // 1. Sembunyikan semua tampilan view
-  const allViews = document.querySelectorAll('.app-view, [id^="view-"]');
-  allViews.forEach(v => {
+  // 1. Sembunyikan semua view
+  const views = document.querySelectorAll('.app-view, [id^="view-"]');
+  views.forEach(v => {
     v.classList.add('hidden');
     v.style.display = 'none';
   });
 
-  // 2. Nonaktifkan status aktif tombol menu
-  const navBtns = document.querySelectorAll('.nav-item, .sidebar-link, [data-view]');
-  navBtns.forEach(btn => btn.classList.remove('active'));
-
-  // 3. Tampilkan view yang dituju
+  // 2. Tampilkan view yang dipilih
   const targetView = document.getElementById(`view-${viewName}`);
   if (targetView) {
     targetView.classList.remove('hidden');
     targetView.style.display = 'block';
   }
 
-  // 4. Beri highlight pada menu aktif
-  const activeBtns = document.querySelectorAll(`[data-view="${viewName}"]`);
-  activeBtns.forEach(btn => btn.classList.add('active'));
-
-  // 5. Tutup sidebar setelah menu diklik
-  if (window.toggleSidebar) {
-    window.toggleSidebar(false);
-  }
+  // 3. Update highlight tombol navigasi
+  document.querySelectorAll('.nav-item, .sidebar-link, [data-view]').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  document.querySelectorAll(`[data-view="${viewName}"]`).forEach(btn => {
+    btn.classList.add('active');
+  });
 
   state.currentView = viewName;
 
-  // 6. Jalankan inisialisasi view terkait
-  if (viewName === 'admin' && typeof initAdminView === 'function') {
+  // 4. Inisialisasi controller view
+  if (viewName === 'admin') {
     initAdminView();
-  } else if (viewName === 'pos' && typeof window.initPOSView === 'function') {
+  } else if (viewName === 'pos' && window.initPOSView) {
     window.initPOSView();
-  } else if (viewName === 'history' && typeof window.initHistoryView === 'function') {
+  } else if (viewName === 'history' && window.initHistoryView) {
     window.initHistoryView();
-  } else if (viewName === 'reports' && typeof window.initReportsView === 'function') {
+  } else if (viewName === 'reports' && window.initReportsView) {
     window.initReportsView();
-  } else if (viewName === 'products' && typeof window.loadAdminProducts === 'function') {
+  } else if (viewName === 'products' && window.loadAdminProducts) {
     window.loadAdminProducts();
   }
 }
 
 // =========================================================================
-// KONTROL VISIBILITAS MENU BERDASARKAN ROLE
+// KONTROL VISIBILITAS MENU BERDASARKAN ROLE & DOMAIN
 // =========================================================================
 export function updateNavVisibility() {
-  const isSuperAdmin = state.user?.role === 'SUPERADMIN' || window.location.hostname.includes('posta.gpro.my.id') || window.location.hostname === 'localhost';
-  const role = state.user?.role || 'KASIR';
+  const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
 
-  const adminNav = document.querySelectorAll('.nav-admin-only, [data-role="admin"]');
-  adminNav.forEach(el => {
-    el.style.display = (isSuperAdmin || role === 'OWNER' || role === 'ADMIN') ? '' : 'none';
+  // Sembunyikan tombol POS / Kasir jika sedang di domain pusat
+  const posNavs = document.querySelectorAll('[data-view="pos"]');
+  posNavs.forEach(el => {
+    el.style.display = isSuperDomain ? 'none' : '';
   });
 
-  const superAdminNav = document.querySelectorAll('.nav-superadmin-only, [data-role="superadmin"]');
-  superAdminNav.forEach(el => {
-    el.style.display = isSuperAdmin ? '' : 'none';
+  // Tampilkan menu Admin
+  const adminNavs = document.querySelectorAll('[data-view="admin"], .nav-admin-only');
+  adminNavs.forEach(el => {
+    el.style.display = '';
   });
 }
 
 // =========================================================================
-// INISIALISASI NAVIGASI & EVENT LISTENER
+// INISIALISASI NAVIGASI
 // =========================================================================
 export function initNavigation() {
   console.log('Inisialisasi Navigasi App...');
 
-  // Event delegation untuk semua elemen dengan data-view atau onclick navigasi
+  // Event listener tombol navigasi
   document.addEventListener('click', (e) => {
     const navBtn = e.target.closest('[data-view]');
     if (navBtn) {
       e.preventDefault();
-      const targetView = navBtn.getAttribute('data-view');
-      if (targetView) {
-        navigateTo(targetView);
-      }
+      const target = navBtn.getAttribute('data-view');
+      if (target) navigateTo(target);
     }
   });
 
   updateNavVisibility();
 
-  // Buka default view POS
-  navigateTo('pos');
+  // JIKA DI POSTA.GPRO.MY.ID: BUKA ADMIN (SUPERADMIN DASHBOARD)
+  // JIKA DI SUBDOMAIN TOKO LAIN: BUKA POS (KASIR)
+  const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+  if (isSuperDomain) {
+    navigateTo('admin');
+  } else {
+    navigateTo('pos');
+  }
 }
 
-// Global window bindings
 window.navigateTo = navigateTo;
 window.updateNavVisibility = updateNavVisibility;
 window.initNavigation = initNavigation;
