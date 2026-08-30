@@ -1,13 +1,11 @@
 import { state } from './state.js';
 import { initAdminView } from './views/admin.js';
+import { initPOSView } from './views/pos.js';
 
-// =========================================================================
-// NAVIGASI VIEW
-// =========================================================================
 export function navigateTo(viewName) {
-  console.log('Navigasi aktif ke:', viewName);
+  console.log('Navigasi ke:', viewName);
 
-  // 1. Sembunyikan semua view
+  // 1. Sembunyikan semua kontainer view
   const views = document.querySelectorAll('.app-view, [id^="view-"]');
   views.forEach(v => {
     v.classList.add('hidden');
@@ -21,56 +19,54 @@ export function navigateTo(viewName) {
     targetView.style.display = 'block';
   }
 
-  // 3. Update highlight tombol navigasi
+  // 3. Update status menu aktif di header & sidebar
   document.querySelectorAll('.nav-item, .sidebar-link, [data-view]').forEach(btn => {
-    btn.classList.remove('active');
+    btn.classList.remove('active', 'bg-blue-50', 'text-blue-600', 'font-bold');
   });
   document.querySelectorAll(`[data-view="${viewName}"]`).forEach(btn => {
-    btn.classList.add('active');
+    btn.classList.add('active', 'bg-blue-50', 'text-blue-600', 'font-bold');
   });
+
+  // 4. Tutup sidebar jika dalam mode mobile
+  if (window.toggleSidebar) {
+    window.toggleSidebar(false);
+  }
 
   state.currentView = viewName;
 
-  // 4. Inisialisasi controller view
-  if (viewName === 'admin') {
+  // 5. Jalankan inisialisasi modul terkait
+  if (viewName === 'admin' && typeof initAdminView === 'function') {
     initAdminView();
-  } else if (viewName === 'pos' && window.initPOSView) {
-    window.initPOSView();
-  } else if (viewName === 'history' && window.initHistoryView) {
+  } else if (viewName === 'pos' && typeof initPOSView === 'function') {
+    initPOSView();
+  } else if (viewName === 'history' && typeof window.initHistoryView === 'function') {
     window.initHistoryView();
-  } else if (viewName === 'reports' && window.initReportsView) {
+  } else if (viewName === 'reports' && typeof window.initReportsView === 'function') {
     window.initReportsView();
-  } else if (viewName === 'products' && window.loadAdminProducts) {
+  } else if (viewName === 'products' && typeof window.loadAdminProducts === 'function') {
     window.loadAdminProducts();
   }
 }
 
-// =========================================================================
-// KONTROL VISIBILITAS MENU BERDASARKAN ROLE & DOMAIN
-// =========================================================================
 export function updateNavVisibility() {
   const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
+  const role = state.user?.role || 'KASIR';
 
-  // Sembunyikan tombol POS / Kasir jika sedang di domain pusat
   const posNavs = document.querySelectorAll('[data-view="pos"]');
   posNavs.forEach(el => {
     el.style.display = isSuperDomain ? 'none' : '';
   });
 
-  // Tampilkan menu Admin
   const adminNavs = document.querySelectorAll('[data-view="admin"], .nav-admin-only');
   adminNavs.forEach(el => {
-    el.style.display = '';
+    el.style.display = (isSuperDomain || role === 'SUPERADMIN' || role === 'OWNER' || role === 'ADMIN') ? '' : 'none';
   });
 }
 
-// =========================================================================
-// INISIALISASI NAVIGASI
-// =========================================================================
 export function initNavigation() {
-  console.log('Inisialisasi Navigasi App...');
+  console.log('Inisialisasi Navigasi Posta...');
 
-  // Event listener tombol navigasi
+  // Event listener untuk tombol navigasi
   document.addEventListener('click', (e) => {
     const navBtn = e.target.closest('[data-view]');
     if (navBtn) {
@@ -82,10 +78,9 @@ export function initNavigation() {
 
   updateNavVisibility();
 
-  // JIKA DI POSTA.GPRO.MY.ID: BUKA ADMIN (SUPERADMIN DASHBOARD)
-  // JIKA DI SUBDOMAIN TOKO LAIN: BUKA POS (KASIR)
+  // BUKA DASHBOARD DEVELOPER DI POSTA PUSAT, ATAU KASIR POS DI TOKO
   const isSuperDomain = window.location.hostname === 'posta.gpro.my.id' || window.location.hostname === 'localhost';
-  if (isSuperDomain) {
+  if (isSuperDomain || state.user?.role === 'SUPERADMIN') {
     navigateTo('admin');
   } else {
     navigateTo('pos');
