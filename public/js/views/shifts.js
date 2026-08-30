@@ -34,7 +34,7 @@ export async function checkAndRestoreShift() {
     } else {
       state.activeShift = null;
       updateHeaderShiftStatus(null);
-      // Buka modal jika kasir memang belum buka shift
+      // Buka modal buka shift jika role kasir belum memiliki shift aktif
       if (state.user && state.user.role === 'CASHIER') {
         openModalOpenShift();
       }
@@ -74,10 +74,12 @@ function setupShiftModalEvents() {
           playSuccessSound();
           alert('Shift berhasil dibuka!');
         } else {
+          playAlertSound();
           alert(res?.error || 'Gagal membuka shift');
         }
       } catch (err) {
         console.error('Error open shift:', err);
+        playAlertSound();
         alert('Terjadi kesalahan saat membuka shift');
       }
     });
@@ -105,13 +107,14 @@ function setupShiftModalEvents() {
           closeModalCloseShift();
           playSuccessSound();
           
-          // Tampilkan ringkasan X-Report
           alert(`Shift Berhasil Ditutup!\nModal Awal: Rp ${Number(res.summary.starting_cash).toLocaleString('id-ID')}\nFisik Kas: Rp ${Number(res.summary.actual_cash).toLocaleString('id-ID')}\nSelisih: Rp ${Number(res.summary.difference).toLocaleString('id-ID')}`);
         } else {
+          playAlertSound();
           alert(res?.error || 'Gagal menutup shift');
         }
       } catch (err) {
         console.error('Error closing shift:', err);
+        playAlertSound();
         alert('Terjadi kesalahan saat menutup shift');
       }
     });
