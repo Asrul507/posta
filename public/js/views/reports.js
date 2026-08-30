@@ -1,4 +1,4 @@
-import { apiFetch } from '../api.js';
+import { api } from '../api.js';
 
 let chartInstance = null;
 
@@ -7,10 +7,10 @@ export function initReports() {
     const curMonth = today.substring(0, 7);
 
     const dInput = document.getElementById('daily-report-date');
-    if (dInput) dInput.value = today;
+    if (dInput && !dInput.value) dInput.value = today;
 
     const mInput = document.getElementById('monthly-report-period');
-    if (mInput) mInput.value = curMonth;
+    if (mInput && !mInput.value) mInput.value = curMonth;
 
     loadDailyReport();
 }
@@ -22,16 +22,16 @@ export function switchReportTab(tab) {
     const btnMonthly = document.getElementById('tab-btn-monthly');
 
     if (tab === 'daily') {
-        paneDaily.classList.remove('hidden');
-        paneMonthly.classList.add('hidden');
-        btnDaily.className = "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition";
-        btnMonthly.className = "px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-semibold transition";
+        if (paneDaily) paneDaily.classList.remove('hidden');
+        if (paneMonthly) paneMonthly.classList.add('hidden');
+        if (btnDaily) btnDaily.className = "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition";
+        if (btnMonthly) btnMonthly.className = "px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-semibold transition";
         loadDailyReport();
     } else {
-        paneDaily.classList.add('hidden');
-        paneMonthly.classList.remove('hidden');
-        btnMonthly.className = "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition";
-        btnDaily.className = "px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-semibold transition";
+        if (paneDaily) paneDaily.classList.add('hidden');
+        if (paneMonthly) paneMonthly.classList.remove('hidden');
+        if (btnMonthly) btnMonthly.className = "px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-sm transition";
+        if (btnDaily) btnDaily.className = "px-4 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg text-sm font-semibold transition";
         loadMonthlyReport();
     }
 }
@@ -41,7 +41,7 @@ export async function loadDailyReport() {
     if (!date) return;
 
     try {
-        const res = await apiFetch(`/api/reports/daily?date=${date}`);
+        const res = await api(`/api/reports/daily?date=${date}`, 'GET');
         if (!res || !res.success) return;
 
         const sum = res.summary || {};
@@ -72,7 +72,7 @@ export async function loadMonthlyReport() {
     if (!period) return;
 
     try {
-        const res = await apiFetch(`/api/reports/monthly?period=${period}`);
+        const res = await api(`/api/reports/monthly?period=${period}`, 'GET');
         if (!res || !res.success) return;
 
         const list = res.data || [];
