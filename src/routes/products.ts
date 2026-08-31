@@ -1,29 +1,32 @@
-import { Env } from "../types";
+import { Env, UserPayload } from '../types';
 
-export async function handleGetProducts(request: Request, env: Env): Promise<Response> {
+export async function handleProductsRoutes(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  authUser?: UserPayload | null
+): Promise<Response> {
   const url = new URL(request.url);
-  const tenantId = url.searchParams.get("tenant_id") || "toko_demo_01";
+  const path = url.pathname;
+  const tenant_id = authUser?.tenant_id || request.headers.get('x-tenant-id') || 'berkah';
 
-  try {
-    const query = `
-      SELECT 
-        p.id, 
-        p.barcode, 
-        p.name, 
-        p.price, 
-        p.cost_price, 
-        p.stock, 
-        p.unit, 
-        c.name AS category_name
-      FROM products p
-      LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.tenant_id = ? AND p.is_active = 1
-      ORDER BY p.name ASC
-    `;
-    const { results } = await env.DB.prepare(query).bind(tenantId).all();
+  if (path === '/api/products' && request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      'SELECT id, tenant_id, barcode, name, category, cost_price, selling_price, stock, unit, is_active FROM products WHERE tenant_id = ? AND is_active = 1'
+    )
+      .bind(tenant_id)
+      .all();
 
-    return Response.json({ success: true, data: results });
-  } catch (err: any) {
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    return new Response(JSON.stringify(results || []), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
+
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    status: 405,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
 }
+
+// Alias export untuk mencegah kegagalan import nama tunggal/jamak
+export { handleProductsRoutes as handleProductRoutes };
