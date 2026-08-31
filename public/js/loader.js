@@ -17,13 +17,13 @@ export async function loadComponents() {
 
       try {
         const response = await fetch(comp.url);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.ok) {
+          container.innerHTML = await response.text();
+        } else {
+          console.warn(`Gagal fetch ${comp.url}, status:`, response.status);
         }
-        const html = await response.text();
-        container.innerHTML = html;
       } catch (err) {
-        console.warn(`Gagal memuat komponen ${comp.url}:`, err);
+        console.error(`Error loading ${comp.url}:`, err);
       }
     })
   );
