@@ -1,4 +1,4 @@
-const CACHE_NAME = 'posta-cache-v1';
+const CACHE_NAME = 'posta-cache-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -25,6 +25,7 @@ const STATIC_ASSETS = [
   '/components/modals.html',
   '/components/view-pos.html',
   '/components/view-products.html',
+  '/components/view-history.html',
   '/components/view-reports.html',
   '/components/view-admin.html'
 ];

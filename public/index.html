@@ -6,6 +6,9 @@
   <title>Posta POS</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0f172a">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
@@ -26,6 +29,7 @@
       <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-900">
         <div id="view-pos-container" class="view-panel"></div>
         <div id="view-products-container" class="view-panel" style="display: none;"></div>
+        <div id="view-history-container" class="view-panel" style="display: none;"></div>
         <div id="view-reports-container" class="view-panel" style="display: none;"></div>
         <div id="view-admin-container" class="view-panel" style="display: none;"></div>
       </main>

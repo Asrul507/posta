@@ -43,6 +43,8 @@ export async function checkAuthSession(tenantInfo) {
     updateHeaderShiftStatus();
 
     if (loginOverlay) loginOverlay.classList.add('hidden');
+    const app = document.getElementById('app');
+    if (app) app.style.display = 'flex';
 
     if (user.role !== 'SUPERADMIN' && typeof window.checkActiveShift === 'function') {
       window.checkActiveShift();
@@ -69,23 +71,25 @@ export async function submitLogin() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memvalidasi...';
 
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, tenant_id: 'berkah' })
     });
     const result = await res.json();
 
-    if (result.success) {
+    if (result.token && result.user) {
       localStorage.setItem('posta_token', result.token);
       localStorage.setItem('posta_user', JSON.stringify(result.user));
       state.currentUser = result.user;
       state.tenantId = result.user.tenant_id;
 
       document.getElementById('login-overlay').classList.add('hidden');
+      const app = document.getElementById('app');
+      if (app) app.style.display = 'flex';
       applyRolePermissions(result.user);
       updateHeaderShiftStatus();
-      showToast(`Selamat datang, ${result.user.name}!`);
+      showToast(`Selamat datang, ${result.user.full_name || result.user.username}!`);
 
       if (result.user.role === 'SUPERADMIN') {
         document.getElementById('view-admin-portal').classList.remove('hidden');
@@ -125,7 +129,7 @@ export function logout() {
 
 export function applyRolePermissions(user) {
   const nameLabels = document.querySelectorAll('.current-user-name');
-  nameLabels.forEach(el => el.innerText = `${user.name} (${user.role})`);
+  nameLabels.forEach(el => el.innerText = `${user.full_name || user.username} (${user.role})`);
 
   if (user.role === 'CASHIER') {
     const restricted = document.querySelectorAll('.role-admin-only');
@@ -134,4 +138,10 @@ export function applyRolePermissions(user) {
     const restricted = document.querySelectorAll('.role-admin-only');
     restricted.forEach(el => el.classList.remove('hidden'));
   }
+}
+
+// Kept as a public initializer for compatibility with older deployments.
+export function initAuth() {
+  const loginOverlay = document.getElementById('login-overlay');
+  if (loginOverlay && !localStorage.getItem('posta_token')) loginOverlay.classList.remove('hidden');
 }
