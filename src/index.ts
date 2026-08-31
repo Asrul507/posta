@@ -5,6 +5,7 @@ import { handleStockRoutes } from './routes/stock';
 import { handlePORoutes } from './routes/po';
 import { handleReportsRoutes } from './routes/reports';
 import { handleShiftsRoutes } from './routes/shifts';
+import { handleEmployeesRoutes } from './routes/employees';
 
 const DEFAULT_JWT_SECRET = 'posta-secure-jwt-secret-key-2026';
 
@@ -26,6 +27,12 @@ function isAdminHost(hostname: string): boolean {
 
 function isPlatformAdmin(role: string | undefined): boolean {
   return role === 'SUPERADMIN' || role === 'DEVELOPER';
+}
+
+// OWNER & ADMIN mengelola toko (produk, stok, laporan, karyawan) selain transaksi.
+// CASHIER hanya boleh transaksi, buka/tutup shift, dan input barang masuk (PO).
+function isTenantManager(role: string | undefined): boolean {
+  return role === 'OWNER' || role === 'ADMIN' || isPlatformAdmin(role);
 }
 
 // Helper SHA-256
@@ -286,7 +293,7 @@ export default {
       if (path.startsWith('/api/')) {
         const authUser = await verifyJWT(request.headers.get('Authorization'), getJwtSecret(env));
 
-        const protectedPrefixes = ['/api/checkout', '/api/stock', '/api/po', '/api/reports', '/api/shifts', '/api/admin'];
+        const protectedPrefixes = ['/api/checkout', '/api/stock', '/api/po', '/api/reports', '/api/shifts', '/api/admin', '/api/employees'];
         const isProtected = protectedPrefixes.some((prefix) => path.startsWith(prefix));
 
         if (isProtected && !authUser) {
@@ -306,20 +313,35 @@ export default {
         if (path.startsWith('/api/products')) {
           return await (handleProductsRoutes as any)(request, env, corsHeaders, authUser);
         }
+        // Transaksi, buka/tutup shift, dan input barang masuk (PO) boleh diakses semua role toko,
+        // termasuk CASHIER.
         if (path.startsWith('/api/checkout')) {
           return await (handleCheckoutRoutes as any)(request, env, corsHeaders, authUser);
-        }
-        if (path.startsWith('/api/stock')) {
-          return await (handleStockRoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/po')) {
           return await (handlePORoutes as any)(request, env, corsHeaders, authUser);
         }
-        if (path.startsWith('/api/reports')) {
-          return await (handleReportsRoutes as any)(request, env, corsHeaders, authUser);
-        }
         if (path.startsWith('/api/shifts')) {
           return await (handleShiftsRoutes as any)(request, env, corsHeaders, authUser);
+        }
+        // Penyesuaian stok, laporan, dan manajemen karyawan khusus OWNER/ADMIN (bukan CASHIER).
+        if (path.startsWith('/api/stock')) {
+          if (!isTenantManager(authUser?.role)) {
+            return json({ error: 'Fitur penyesuaian stok khusus Owner/Admin.' }, 403, corsHeaders);
+          }
+          return await (handleStockRoutes as any)(request, env, corsHeaders, authUser);
+        }
+        if (path.startsWith('/api/reports')) {
+          if (!isTenantManager(authUser?.role)) {
+            return json({ error: 'Fitur laporan khusus Owner/Admin.' }, 403, corsHeaders);
+          }
+          return await (handleReportsRoutes as any)(request, env, corsHeaders, authUser);
+        }
+        if (path.startsWith('/api/employees')) {
+          if (!isTenantManager(authUser?.role)) {
+            return json({ error: 'Fitur manajemen karyawan khusus Owner/Admin.' }, 403, corsHeaders);
+          }
+          return await handleEmployeesRoutes(request, env, corsHeaders, authUser as UserPayload);
         }
       }
 

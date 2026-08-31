@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS shifts (
   tenant_id TEXT NOT NULL REFERENCES tenants(id),
   cashier_id TEXT NOT NULL,
   cashier_name TEXT NOT NULL,
+  shift_name TEXT NOT NULL DEFAULT 'Pagi',
   start_cash REAL NOT NULL DEFAULT 0,
   total_cash_sales REAL NOT NULL DEFAULT 0,
   total_non_cash_sales REAL NOT NULL DEFAULT 0,

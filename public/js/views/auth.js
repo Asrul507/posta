@@ -51,9 +51,10 @@ export async function checkAuthSession(tenantInfo) {
     const app = document.getElementById('app');
     if (app) app.style.display = 'flex';
 
-    if (!isPlatformAdmin(user) && typeof window.checkActiveShift === 'function') {
-      window.checkActiveShift();
+    if (!isPlatformAdmin(user) && typeof window.loadProducts === 'function') {
+      window.loadProducts();
     }
+    goToDefaultView(user);
 
     return true;
   } catch (e) {
@@ -103,7 +104,7 @@ export async function submitLogin() {
         if (typeof window.loadAdminTenants === 'function') window.loadAdminTenants();
       } else {
         if (typeof window.loadProducts === 'function') window.loadProducts();
-        if (typeof window.checkActiveShift === 'function') window.checkActiveShift();
+        goToDefaultView(result.user);
       }
     } else {
       showToast(result.error || 'Username atau password salah', 'error');
@@ -138,12 +139,30 @@ export function applyRolePermissions(user) {
   const nameLabels = document.querySelectorAll('.current-user-name');
   nameLabels.forEach(el => el.innerText = `${user.full_name || user.username} (${user.role})`);
 
+  const isCashier = user.role === 'CASHIER';
+
+  // Menu Produk, Riwayat, Laporan & Manajemen Karyawan: khusus Owner/Admin (& Superadmin).
+  document.querySelectorAll('.role-admin-only').forEach(el => {
+    el.classList.toggle('hidden', isCashier);
+  });
+
+  // Elemen terkait shift kasir (badge & tombol tutup shift): hanya wajib untuk role Kasir.
+  document.querySelectorAll('.role-cashier-only').forEach(el => {
+    el.classList.toggle('hidden', !isCashier);
+  });
+}
+
+// Menentukan halaman awal setelah login berdasarkan role:
+// - Kasir: wajib buka shift dulu, lalu tampil di halaman Kasir (POS).
+// - Owner/Admin: tidak wajib buka shift, langsung ke Laporan Bulanan.
+function goToDefaultView(user) {
+  if (isPlatformAdmin(user)) return;
+
   if (user.role === 'CASHIER') {
-    const restricted = document.querySelectorAll('.role-admin-only');
-    restricted.forEach(el => el.classList.add('hidden'));
+    if (typeof window.checkActiveShift === 'function') window.checkActiveShift();
+    if (typeof window.switchView === 'function') window.switchView('POS');
   } else {
-    const restricted = document.querySelectorAll('.role-admin-only');
-    restricted.forEach(el => el.classList.remove('hidden'));
+    if (typeof window.switchView === 'function') window.switchView('MONTHLY_REPORT');
   }
 }
 

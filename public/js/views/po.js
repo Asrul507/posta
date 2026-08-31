@@ -198,12 +198,7 @@ export async function submitPurchaseOrder() {
       items: poCart
     };
 
-    const res = await fetch('/api/po/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const result = await res.json();
+    const result = await API.submitPO(payload);
 
     if (result.success) {
       showToast('Barang masuk berhasil disimpan & stok diperbarui!');
@@ -214,7 +209,7 @@ export async function submitPurchaseOrder() {
       showToast('Gagal: ' + (result.error || 'Terjadi kesalahan'), 'error');
     }
   } catch (err) {
-    showToast('Gagal menyimpan PO (masalah jaringan).', 'error');
+    showToast(err.message || 'Gagal menyimpan PO (masalah jaringan).', 'error');
   } finally {
     if (btn) {
       btn.disabled = false;

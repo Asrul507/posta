@@ -34,7 +34,8 @@ export function switchView(viewName) {
     'view-history',
     'view-po-history',
     'view-daily-report',
-    'view-monthly-report'
+    'view-monthly-report',
+    'view-employees'
   ];
 
   // Sembunyikan semua section view
@@ -61,5 +62,8 @@ export function switchView(viewName) {
   } else if (viewName === 'MONTHLY_REPORT') {
     document.getElementById('view-monthly-report')?.classList.remove('hidden');
     if (typeof window.loadMonthlyReport === 'function') window.loadMonthlyReport();
+  } else if (viewName === 'EMPLOYEES') {
+    document.getElementById('view-employees')?.classList.remove('hidden');
+    if (typeof window.loadEmployees === 'function') window.loadEmployees();
   }
 }

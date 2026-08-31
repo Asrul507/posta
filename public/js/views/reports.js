@@ -83,8 +83,7 @@ export async function loadDailyReport() {
   }
 
   try {
-    const res = await fetch(`/api/reports/daily?tenant_id=${tenantId}&date=${selectedDate}`);
-    const result = await res.json();
+    const result = await API.get(`/api/reports/daily?date=${selectedDate}`);
 
     if (result.success) {
       const sum = result.summary || {};
@@ -184,8 +183,7 @@ export async function loadMonthlyReport() {
   }
 
   try {
-    const res = await fetch(`/api/reports/monthly?tenant_id=${tenantId}&month=${selectedMonth}`);
-    const result = await res.json();
+    const result = await API.get(`/api/reports/monthly?month=${selectedMonth}`);
 
     if (result.success) {
       const sum = result.summary || {};

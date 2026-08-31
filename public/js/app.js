@@ -6,6 +6,7 @@ import * as po from './views/po.js';
 import * as reports from './views/reports.js';
 import * as shifts from './views/shifts.js';
 import * as admin from './views/admin.js';
+import * as employees from './views/employees.js';
 import * as scanner from './scanner.js';
 import { toggleSidebar, switchView, toggleMobileCartDrawer } from './navigation.js';
 
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadComponents();
     Object.assign(window, {
       toggleSidebar, switchView, toggleMobileCartDrawer,
-      ...auth, ...pos, ...checkout, ...po, ...reports, ...shifts, ...admin, ...scanner,
+      ...auth, ...pos, ...checkout, ...po, ...reports, ...shifts, ...admin, ...scanner, ...employees,
     });
 
     scanner.initHardwareScannerListener();

@@ -1,4 +1,5 @@
 import { state, formatRupiah, showToast } from '../state.js';
+import { api } from '../api.js';
 
 export function updateHeaderShiftStatus() {
   const badge = document.getElementById('header-shift-badge');
@@ -25,16 +26,14 @@ export function updateHeaderShiftStatus() {
 }
 
 export async function checkActiveShift() {
-  if (['SUPERADMIN', 'DEVELOPER'].includes(state.currentUser?.role)) return true;
+  // Hanya role Kasir yang wajib buka shift. Owner/Admin/Superadmin tidak wajib.
+  if (state.currentUser?.role !== 'CASHIER') return true;
 
-  const tenantId = state.tenantId || state.currentUser?.tenant_id;
   const userId = state.currentUser?.id;
-
-  if (!tenantId || !userId) return false;
+  if (!userId) return false;
 
   try {
-    const res = await fetch(`/api/shifts/current?tenant_id=${tenantId}&user_id=${userId}`);
-    const result = await res.json();
+    const result = await api.get(`/api/shifts/current?user_id=${userId}`);
 
     if (result.success && result.active_shift) {
       state.currentShift = result.active_shift;
@@ -61,22 +60,14 @@ export async function submitOpenShift() {
   const btn = document.getElementById('btn-submit-open-shift');
   if (btn) btn.disabled = true;
 
-  const tenantId = state.tenantId || state.currentUser?.tenant_id;
-
   try {
-    const res = await fetch('/api/shifts/open', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tenant_id: tenantId,
-        user_id: state.currentUser.id,
-        cashier_name: state.currentUser.name,
-        shift_name: shiftName,
-        starting_cash: startCash
-      })
+    const result = await api.post('/api/shifts/open', {
+      user_id: state.currentUser.id,
+      cashier_name: state.currentUser.full_name || state.currentUser.username,
+      shift_name: shiftName,
+      starting_cash: startCash,
     });
 
-    const result = await res.json();
     if (result.success) {
       state.currentShift = result.shift;
       updateHeaderShiftStatus();
@@ -86,7 +77,7 @@ export async function submitOpenShift() {
       showToast(result.error || 'Gagal membuka shift', 'error');
     }
   } catch (err) {
-    showToast('Terjadi kesalahan jaringan.', 'error');
+    showToast(err.message || 'Terjadi kesalahan jaringan.', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -120,17 +111,12 @@ export async function submitCloseShift() {
   if (btn) btn.disabled = true;
 
   try {
-    const res = await fetch('/api/shifts/close', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        shift_id: state.currentShift.id,
-        actual_cash: actualCash,
-        notes: notes
-      })
+    const result = await api.post('/api/shifts/close', {
+      shift_id: state.currentShift.id,
+      actual_cash: actualCash,
+      notes: notes,
     });
 
-    const result = await res.json();
     if (result.success) {
       const closeMod = document.getElementById('close-shift-modal');
       if (closeMod) closeMod.classList.add('hidden');
@@ -142,7 +128,7 @@ export async function submitCloseShift() {
       showToast(result.error || 'Gagal menutup shift', 'error');
     }
   } catch (err) {
-    showToast('Gagal memproses tutup shift.', 'error');
+    showToast(err.message || 'Gagal memproses tutup shift.', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }

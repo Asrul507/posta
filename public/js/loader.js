@@ -8,6 +8,7 @@ export async function loadComponents() {
     { id: 'view-products-container', url: '/components/view-products.html' },
     { id: 'view-history-container', url: '/components/view-history.html' },
     { id: 'view-reports-container', url: '/components/view-reports.html' },
+    { id: 'view-employees-container', url: '/components/view-employees.html' },
     { id: 'view-admin-container', url: '/components/view-admin.html' }
   ];
 

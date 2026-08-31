@@ -1,0 +1,82 @@
+<div id="view-employees" class="flex-1 hidden flex-col bg-slate-50 p-3 sm:p-4 overflow-hidden pb-20 md:pb-4">
+  <div class="bg-white rounded-2xl border border-slate-200 flex-1 flex flex-col overflow-hidden shadow-sm">
+    <div class="p-3 sm:p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5">
+      <div>
+        <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+          <i class="fa-solid fa-users-gear text-emerald-600"></i>
+          <span>Manajemen Karyawan</span>
+        </h2>
+        <span class="text-[11px] text-slate-500">Kelola akun Owner, Admin, dan Kasir untuk toko ini</span>
+      </div>
+      <button onclick="window.openAddEmployeeModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-user-plus"></i>
+        <span>Tambah Karyawan</span>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-auto p-3 sm:p-4">
+      <table class="w-full text-left text-xs border-collapse">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase text-slate-500 font-bold">
+            <th class="py-2.5 px-3">Nama Lengkap</th>
+            <th class="py-2.5 px-3">Username</th>
+            <th class="py-2.5 px-3">Role</th>
+            <th class="py-2.5 px-3 text-center">Status</th>
+            <th class="py-2.5 px-3 text-center">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="employees-tbody" class="divide-y divide-slate-100">
+          <tr><td colspan="5" class="text-center py-8 text-slate-400">Memuat data karyawan...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH / EDIT KARYAWAN -->
+<div id="employee-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[210] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl space-y-4">
+    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+      <h3 id="employee-modal-title" class="font-bold text-slate-800 text-sm">Tambah Karyawan Baru</h3>
+      <button type="button" onclick="window.closeEmployeeModal()" class="text-slate-400 hover:text-slate-600 text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <form onsubmit="event.preventDefault(); window.submitEmployeeForm();" class="space-y-3 text-xs">
+      <input type="hidden" id="employee-id-input" />
+      <div>
+        <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Nama Lengkap</label>
+        <input id="employee-fullname-input" type="text" required placeholder="Contoh: Siti Rahma" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500" />
+      </div>
+      <div>
+        <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Username</label>
+        <input id="employee-username-input" type="text" required autocomplete="off" placeholder="username_karyawan" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono focus:outline-none focus:border-emerald-500" />
+      </div>
+      <div>
+        <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Password</label>
+        <input id="employee-password-input" type="password" autocomplete="new-password" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500" />
+      </div>
+      <div>
+        <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Role / Hak Akses</label>
+        <select id="employee-role-input" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500">
+          <option value="CASHIER">Kasir</option>
+        </select>
+      </div>
+      <div id="employee-active-row" class="hidden pt-1">
+        <label class="inline-flex items-center gap-2 font-bold text-slate-600 cursor-pointer">
+          <input id="employee-active-input" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+          <span>Akun Aktif (bisa login)</span>
+        </label>
+      </div>
+
+      <div class="pt-2 flex gap-2">
+        <button type="button" onclick="window.closeEmployeeModal()" class="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 font-bold rounded-xl text-xs text-slate-700">Batal</button>
+        <button id="btn-save-employee" type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-check"></i>
+          <span>Simpan Karyawan</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

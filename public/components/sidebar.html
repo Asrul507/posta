@@ -34,8 +34,8 @@
         <span>Input Barang Masuk</span>
       </button>
       
-      <!-- Tombol Tutup Kasir / End Shift -->
-      <button onclick="window.openCloseShiftModal(); window.toggleSidebar(false);" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 transition mt-1 border border-amber-200">
+      <!-- Tombol Tutup Kasir / End Shift (khusus role Kasir, wajib buka/tutup shift) -->
+      <button onclick="window.openCloseShiftModal(); window.toggleSidebar(false);" class="role-cashier-only w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 transition mt-1 border border-amber-200">
         <i class="fa-solid fa-clock-rotate-left w-4 text-amber-600 text-sm"></i>
         <span>Tutup Kasir (End Shift)</span>
       </button>
@@ -64,6 +64,13 @@
       <button onclick="window.switchView('MONTHLY_REPORT'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
         <i class="fa-solid fa-chart-line w-4 text-indigo-600 text-sm"></i>
         <span>Laporan Bulanan & Laba</span>
+      </button>
+
+      <!-- Section 4: Manajemen Karyawan (Khusus Admin/Owner) -->
+      <div class="role-admin-only pt-4 px-3 py-2 text-[10px] uppercase tracking-wider text-slate-400 font-extrabold">Karyawan</div>
+      <button onclick="window.switchView('EMPLOYEES'); window.toggleSidebar(false);" class="role-admin-only w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-100 transition">
+        <i class="fa-solid fa-users-gear w-4 text-slate-500 text-sm"></i>
+        <span>Manajemen Karyawan</span>
       </button>
     </div>
   </div>
