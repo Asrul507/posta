@@ -69,23 +69,23 @@ export async function verifyJWT(authHeader: string | null, secret: string): Prom
   const [encodedHeader, encodedPayload, encodedSignature] = parts;
   const data = `${encodedHeader}.${encodedPayload}`;
 
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
-
-  const signatureBytes = Uint8Array.from(base64UrlDecode(encodedSignature), (c) => c.charCodeAt(0));
-  const isValid = await crypto.subtle.verify('HMAC', key, signatureBytes, new TextEncoder().encode(data));
-
-  if (!isValid) return null;
-
   try {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const signatureBytes = Uint8Array.from(base64UrlDecode(encodedSignature), (c) => c.charCodeAt(0));
+    const isValid = await crypto.subtle.verify('HMAC', key, signatureBytes, new TextEncoder().encode(data));
+
+    if (!isValid) return null;
+
     const payload = JSON.parse(base64UrlDecode(encodedPayload));
     if (payload.exp && Date.now() / 1000 > payload.exp) {
-      return null; // Expired
+      return null;
     }
     return payload as UserPayload;
   } catch {
@@ -141,7 +141,7 @@ export default {
             tenant_id: user.tenant_id,
             username: user.username,
             role: user.role,
-            exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 jam
+            exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
           },
           getJwtSecret(env)
         );
@@ -161,11 +161,10 @@ export default {
         );
       }
 
-      // 2. PROTECTED ENDPOINTS (JWT Validation)
+      // 2. PROTECTED ENDPOINTS
       if (path.startsWith('/api/')) {
         const authUser = await verifyJWT(request.headers.get('Authorization'), getJwtSecret(env));
 
-        // Rute yang memerlukan autentikasi
         const protectedPrefixes = ['/api/checkout', '/api/stock', '/api/po', '/api/reports', '/api/shifts', '/api/admin'];
         const isProtected = protectedPrefixes.some((prefix) => path.startsWith(prefix));
 
@@ -177,22 +176,22 @@ export default {
         }
 
         if (path.startsWith('/api/products')) {
-          return await handleProductsRoutes(request, env, corsHeaders, authUser);
+          return await (handleProductsRoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/checkout')) {
-          return await handleCheckoutRoutes(request, env, corsHeaders, authUser);
+          return await (handleCheckoutRoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/stock')) {
-          return await handleStockRoutes(request, env, corsHeaders, authUser);
+          return await (handleStockRoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/po')) {
-          return await handlePORoutes(request, env, corsHeaders, authUser);
+          return await (handlePORoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/reports')) {
-          return await handleReportsRoutes(request, env, corsHeaders, authUser);
+          return await (handleReportsRoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/shifts')) {
-          return await handleShiftsRoutes(request, env, corsHeaders, authUser);
+          return await (handleShiftsRoutes as any)(request, env, corsHeaders, authUser);
         }
       }
 
