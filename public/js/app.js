@@ -30,8 +30,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const productSearch = document.getElementById('prod-table-search');
     if (productSearch) productSearch.addEventListener('input', pos.renderProductTable);
 
-    const loggedIn = await auth.checkAuthSession({ id: 'berkah', is_admin: false });
-    if (loggedIn) await pos.loadProducts();
+    // Resolve the current host before attempting login.  The old hard-coded
+    // `berkah` tenant prevented users of every other store (and the developer
+    // portal) from authenticating.
+    await pos.initTenantSession();
   } catch (error) {
     showStartupError(error);
   }

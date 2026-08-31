@@ -1,6 +1,10 @@
 import { state, showToast } from '../state.js';
 import { updateHeaderShiftStatus } from './shifts.js';
 
+function isPlatformAdmin(user) {
+  return user?.role === 'SUPERADMIN' || user?.role === 'DEVELOPER';
+}
+
 export async function checkAuthSession(tenantInfo) {
   const urlParams = new URLSearchParams(window.location.search);
   const ssoToken = urlParams.get('sso_token');
@@ -32,7 +36,8 @@ export async function checkAuthSession(tenantInfo) {
   try {
     const user = JSON.parse(userJson);
     
-    if (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id && user.role !== 'SUPERADMIN') {
+    if ((tenantInfo.is_admin && !isPlatformAdmin(user)) ||
+        (!tenantInfo.is_admin && user.tenant_id !== tenantInfo.id && !isPlatformAdmin(user))) {
       logout();
       return false;
     }
@@ -46,7 +51,7 @@ export async function checkAuthSession(tenantInfo) {
     const app = document.getElementById('app');
     if (app) app.style.display = 'flex';
 
-    if (user.role !== 'SUPERADMIN' && typeof window.checkActiveShift === 'function') {
+    if (!isPlatformAdmin(user) && typeof window.checkActiveShift === 'function') {
       window.checkActiveShift();
     }
 
@@ -74,9 +79,11 @@ export async function submitLogin() {
     const res = await fetch('/api/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, tenant_id: 'berkah' })
+      // `initTenantSession` derives this from the host.  On posta.gpro.my.id
+      // it is `admin`, which lets the API look up SUPERADMIN accounts.
+      body: JSON.stringify({ username, password, tenant_id: state.tenantId })
     });
-    const result = await res.json();
+    const result = await res.json().catch(() => ({}));
 
     if (result.token && result.user) {
       localStorage.setItem('posta_token', result.token);
@@ -84,15 +91,15 @@ export async function submitLogin() {
       state.currentUser = result.user;
       state.tenantId = result.user.tenant_id;
 
-      document.getElementById('login-overlay').classList.add('hidden');
+      document.getElementById('login-overlay')?.classList.add('hidden');
       const app = document.getElementById('app');
       if (app) app.style.display = 'flex';
       applyRolePermissions(result.user);
       updateHeaderShiftStatus();
       showToast(`Selamat datang, ${result.user.full_name || result.user.username}!`);
 
-      if (result.user.role === 'SUPERADMIN') {
-        document.getElementById('view-admin-portal').classList.remove('hidden');
+      if (isPlatformAdmin(result.user) && state.tenantInfo?.is_admin) {
+        document.getElementById('view-admin-portal')?.classList.remove('hidden');
         if (typeof window.loadAdminTenants === 'function') window.loadAdminTenants();
       } else {
         if (typeof window.loadProducts === 'function') window.loadProducts();
@@ -102,7 +109,7 @@ export async function submitLogin() {
       showToast(result.error || 'Username atau password salah', 'error');
     }
   } catch (err) {
-    showToast('Gagal menghubungi server.', 'error');
+    showToast(err.message || 'Gagal menghubungi server.', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<span>Masuk Sekarang</span> <i class="fa-solid fa-arrow-right"></i>';
