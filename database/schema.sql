@@ -1,6 +1,4 @@
--- Posta POS: complete Cloudflare D1 (SQLite) schema.
--- Apply with:
---   npx wrangler d1 execute posta --remote --file=database/schema.sql
+
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS tenants (
@@ -132,10 +130,3 @@ CREATE INDEX IF NOT EXISTS idx_transactions_tenant_created ON transactions (tena
 CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction ON transaction_items (transaction_id);
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_tenant_created ON purchase_orders (tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_tenant_product ON stock_movements (tenant_id, product_id, created_at DESC);
-
--- Initial central developer account. Change this password after the first login.
--- username: developer   password: posta-admin-2026
-INSERT OR IGNORE INTO users (id, tenant_id, username, full_name, password_hash, role, is_active)
-VALUES ('USR-DEVELOPER-DEFAULT', 'SUPERADMIN', 'developer', 'Posta Developer',
-        'e75555e3ec483c348051c91bf533fb9f0ba28e9995e6e00a00ba7732edfe69e4',
-        'SUPERADMIN', 1);
