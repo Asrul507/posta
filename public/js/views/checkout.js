@@ -6,14 +6,13 @@ import { saveOfflineTransaction, syncOfflineTransactions } from '../db.js';
 let selectedPaymentMethod = 'cash';
 let currentReceiptData = null;
 
-// Dengarkan event online untuk otomatis sinkronisasi
 window.addEventListener('online', () => {
   syncOfflineTransactions(api, (msg, type) => {
     const toast = document.getElementById('toast');
     if (toast) {
       toast.textContent = msg;
       toast.className = `toast show ${type || ''}`;
-      setTimeout(() => toast.className = 'toast', 3000);
+      setTimeout(() => (toast.className = 'toast'), 3000);
     }
   });
 });
@@ -175,26 +174,24 @@ async function processCheckout() {
       try {
         result = await api.post('/api/checkout', payload);
       } catch (networkErr) {
-        // Fallback jika API gagal diakses
-        console.warn('Jaringan gagal, menyimpan transaksi secara lokal ke IndexedDB...');
+        console.warn('Network API fail, fallback to IndexedDB:', networkErr);
         await saveOfflineTransaction(payload);
         result = {
           success: true,
           invoice_number: 'OFFLINE-' + Date.now().toString().slice(-6),
           final_amount: total,
           change_amount: changeAmount,
-          is_offline: true
+          is_offline: true,
         };
       }
     } else {
-      // Benar-benar sedang offline
       await saveOfflineTransaction(payload);
       result = {
         success: true,
         invoice_number: 'OFFLINE-' + Date.now().toString().slice(-6),
         final_amount: total,
         change_amount: changeAmount,
-        is_offline: true
+        is_offline: true,
       };
     }
 
@@ -210,7 +207,7 @@ async function processCheckout() {
         payment_method: payload.payment_method,
         cash: payload.cash_amount,
         change: result.change_amount,
-        is_offline: result.is_offline || false
+        is_offline: result.is_offline || false,
       };
 
       closeCheckoutModal();
@@ -233,12 +230,16 @@ function showReceiptModal(data) {
   const receiptContainer = document.getElementById('receipt-print-area');
 
   if (receiptContainer) {
-    let itemsHtml = data.items.map(item => `
+    const itemsHtml = data.items
+      .map(
+        (item) => `
       <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px;">
         <span>${item.name} x${item.quantity}</span>
         <span>Rp ${item.subtotal.toLocaleString('id-ID')}</span>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
     receiptContainer.innerHTML = `
       <div style="text-align: center; margin-bottom: 8px;">
