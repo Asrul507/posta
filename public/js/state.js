@@ -1,35 +1,28 @@
 export const state = {
+  tenantId: 'berkah',
   currentUser: null,
   currentShift: null,
   products: [],
   cart: [],
-  categories: [],
-
-  clearCart() {
-    this.cart = [];
-    if (typeof window.renderCart === 'function') {
-      window.renderCart();
-    }
-  },
-
-  addToCart(product, qty = 1) {
-    const existing = this.cart.find((item) => item.product_id === product.id);
-    if (existing) {
-      existing.quantity += qty;
-      existing.subtotal = existing.quantity * existing.price;
-    } else {
-      this.cart.push({
-        product_id: product.id,
-        barcode: product.barcode || '',
-        name: product.name,
-        price: product.selling_price,
-        cost_price: product.cost_price || 0,
-        quantity: qty,
-        subtotal: product.selling_price * qty,
-      });
-    }
-    if (typeof window.renderCart === 'function') {
-      window.renderCart();
-    }
-  }
+  poItems: [],
+  selectedCategory: 'ALL',
 };
+
+export function formatRupiah(value) {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+  }).format(Number(value) || 0);
+}
+
+export function showToast(message, type = 'success') {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+
+  toast.textContent = message;
+  toast.className = `toast show ${type}`;
+  window.setTimeout(() => {
+    toast.className = 'toast';
+  }, 3000);
+}

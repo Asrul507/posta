@@ -6,6 +6,7 @@ export async function loadComponents() {
     { id: 'modals-container', url: '/components/modals.html' },
     { id: 'view-pos-container', url: '/components/view-pos.html' },
     { id: 'view-products-container', url: '/components/view-products.html' },
+    { id: 'view-history-container', url: '/components/view-history.html' },
     { id: 'view-reports-container', url: '/components/view-reports.html' },
     { id: 'view-admin-container', url: '/components/view-admin.html' }
   ];
