@@ -1,38 +1,41 @@
-// Base API Request Helper
+import { state } from './state.js';
+
 export async function apiRequest(endpoint, options = {}) {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('posta_token');
   const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(options.headers || {})
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(state.tenantId ? { 'x-tenant-id': state.tenantId } : {}),
+    ...(options.headers || {}),
   };
 
-  try {
-    const response = await fetch(endpoint, {
-      ...options,
-      headers
-    });
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(data.error || `HTTP error! status: ${response.status}`);
-    }
-
-    return data;
-  } catch (error) {
-    console.error(`API Error on ${endpoint}:`, error);
-    throw error;
-  }
+  const response = await fetch(endpoint, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `HTTP error: ${response.status}`);
+  return data;
 }
 
-// Wrapper Object untuk method HTTP
 export const api = {
   get: (url, options = {}) => apiRequest(url, { method: 'GET', ...options }),
   post: (url, body, options = {}) => apiRequest(url, { method: 'POST', body: JSON.stringify(body), ...options }),
   put: (url, body, options = {}) => apiRequest(url, { method: 'PUT', body: JSON.stringify(body), ...options }),
-  delete: (url, options = {}) => apiRequest(url, { method: 'DELETE', ...options })
+  delete: (url, options = {}) => apiRequest(url, { method: 'DELETE', ...options }),
 };
 
-// Export alias huruf besar untuk mendukung impor { API } di pos.js
-export const API = api;
+export const API = {
+  ...api,
+  async getProducts() {
+    const data = await api.get('/api/products');
+    return {
+      success: true,
+      data: (Array.isArray(data) ? data : data.data || []).map((product) => ({
+        ...product,
+        price: product.price ?? product.selling_price,
+      })),
+    };
+  },
+  checkout: (payload) => api.post('/api/checkout', payload),
+  submitPO: (payload) => api.post('/api/po/submit', payload),
+  getTransactions: () => api.get('/api/reports/transactions'),
+  getPOHistory: () => api.get('/api/reports/po'),
+};

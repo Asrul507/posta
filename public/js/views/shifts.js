@@ -10,7 +10,7 @@ export function updateHeaderShiftStatus() {
   }
 
   if (userInfo && state.currentUser) {
-    userInfo.innerText = `${state.currentUser.name} (${state.currentUser.role})`;
+    userInfo.innerText = `${state.currentUser.full_name || state.currentUser.name || state.currentUser.username} (${state.currentUser.role})`;
   }
 
   if (badge) {
@@ -25,7 +25,7 @@ export function updateHeaderShiftStatus() {
 }
 
 export async function checkActiveShift() {
-  if (state.currentUser?.role === 'SUPERADMIN') return true;
+  if (['SUPERADMIN', 'DEVELOPER'].includes(state.currentUser?.role)) return true;
 
   const tenantId = state.tenantId || state.currentUser?.tenant_id;
   const userId = state.currentUser?.id;

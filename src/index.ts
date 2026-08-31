@@ -12,6 +12,22 @@ function getJwtSecret(env: Env): string {
   return env.JWT_SECRET || DEFAULT_JWT_SECRET;
 }
 
+function json(body: unknown, status = 200, corsHeaders: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+  });
+}
+
+function isAdminHost(hostname: string): boolean {
+  const host = hostname.split(':')[0].toLowerCase();
+  return host === 'posta.gpro.my.id' || host === 'localhost' || host === '127.0.0.1';
+}
+
+function isPlatformAdmin(role: string | undefined): boolean {
+  return role === 'SUPERADMIN' || role === 'DEVELOPER';
+}
+
 // Helper SHA-256
 async function sha256(str: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -93,6 +109,80 @@ export async function verifyJWT(authHeader: string | null, secret: string): Prom
   }
 }
 
+async function handleAdminRoutes(
+  request: Request,
+  env: Env,
+  corsHeaders: Record<string, string>,
+  authUser: UserPayload,
+  url: URL,
+): Promise<Response> {
+  const path = url.pathname;
+
+  if (path === '/api/admin/tenants' && request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      'SELECT id, subdomain, name, address, is_active FROM tenants ORDER BY name'
+    ).all();
+    return json({ success: true, data: results }, 200, corsHeaders);
+  }
+
+  if (path === '/api/admin/users' && request.method === 'GET') {
+    const { results } = await env.DB.prepare(
+      `SELECT u.id, u.full_name AS name, u.username, u.role, u.is_active,
+              u.tenant_id, COALESCE(t.name, 'Pusat Developer') AS tenant_name,
+              COALESCE(t.subdomain, 'posta') AS subdomain
+       FROM users u LEFT JOIN tenants t ON t.id = u.tenant_id
+       ORDER BY u.full_name, u.username`
+    ).all();
+    return json({ success: true, data: results }, 200, corsHeaders);
+  }
+
+  if (path === '/api/admin/impersonate' && request.method === 'GET') {
+    const subdomain = url.searchParams.get('subdomain');
+    if (!subdomain) return json({ success: false, error: 'Subdomain wajib diisi.' }, 400, corsHeaders);
+    const tenant = await env.DB.prepare(
+      'SELECT id, subdomain FROM tenants WHERE subdomain = ? AND is_active = 1'
+    ).bind(subdomain).first<{ id: string; subdomain: string }>();
+    if (!tenant) return json({ success: false, error: 'Toko tidak ditemukan.' }, 404, corsHeaders);
+
+    const token = await createJWT({
+      ...authUser,
+      tenant_id: tenant.id,
+      exp: Math.floor(Date.now() / 1000) + 15 * 60,
+    }, getJwtSecret(env));
+    const targetUrl = `${url.protocol}//${tenant.subdomain}.gpro.my.id/?sso_token=${encodeURIComponent(token)}`;
+    return json({ success: true, token, target_url: targetUrl }, 200, corsHeaders);
+  }
+
+  if (path === '/api/admin/tenants' && request.method === 'POST') {
+    const body = await request.json() as { subdomain?: string; name?: string; address?: string };
+    const subdomain = body.subdomain?.trim().toLowerCase();
+    const name = body.name?.trim();
+    if (!subdomain || !name || !/^[a-z0-9-]+$/.test(subdomain)) {
+      return json({ success: false, error: 'Nama toko dan subdomain (huruf, angka, strip) wajib diisi.' }, 400, corsHeaders);
+    }
+    await env.DB.prepare(
+      'INSERT INTO tenants (id, subdomain, name, address, is_active) VALUES (?, ?, ?, ?, 1)'
+    ).bind(crypto.randomUUID(), subdomain, name, body.address?.trim() || null).run();
+    return json({ success: true, message: 'Toko berhasil dibuat.' }, 201, corsHeaders);
+  }
+
+  if (path === '/api/admin/users' && request.method === 'POST') {
+    const body = await request.json() as { tenant_id?: string; name?: string; username?: string; password?: string; role?: string };
+    const tenantId = body.tenant_id === 'SUPERADMIN' ? 'SUPERADMIN' : body.tenant_id;
+    const allowedRoles = ['SUPERADMIN', 'OWNER', 'ADMIN', 'CASHIER'];
+    if (!tenantId || !body.name?.trim() || !body.username?.trim() || !body.password || !allowedRoles.includes(body.role || '')) {
+      return json({ success: false, error: 'Data user tidak lengkap atau role tidak valid.' }, 400, corsHeaders);
+    }
+    const passwordHash = await sha256(body.password + 'posta_salt_2026');
+    await env.DB.prepare(
+      'INSERT INTO users (id, tenant_id, full_name, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
+    ).bind(crypto.randomUUID(), tenantId, body.name.trim(), body.username.trim(), passwordHash, body.role).run();
+    return json({ success: true, message: 'User berhasil dibuat.' }, 201, corsHeaders);
+  }
+
+  return json({ error: 'Endpoint admin tidak ditemukan.' }, 404, corsHeaders);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -109,10 +199,24 @@ export default {
 
     try {
       // 1. PUBLIC ENDPOINTS
+      if (path === '/api/tenant/info' && request.method === 'GET') {
+        if (isAdminHost(url.hostname)) {
+          return json({ success: true, is_admin: true }, 200, corsHeaders);
+        }
+
+        const subdomain = url.hostname.split('.')[0].toLowerCase();
+        const tenant = await env.DB.prepare(
+          'SELECT id, subdomain, name, address, is_active FROM tenants WHERE subdomain = ? AND is_active = 1'
+        ).bind(subdomain).first();
+
+        if (!tenant) return json({ success: false, error: 'Subdomain toko tidak terdaftar atau tidak aktif.' }, 404, corsHeaders);
+        return json({ success: true, is_admin: false, data: tenant }, 200, corsHeaders);
+      }
+
       if (path === '/api/login' && request.method === 'POST') {
         const body = (await request.json()) as { username?: string; password?: string; tenant_id?: string };
         const { username, password } = body;
-        const tenant_id = body.tenant_id || 'berkah';
+        const tenant_id = body.tenant_id;
 
         if (!username || !password) {
           return new Response(JSON.stringify({ error: 'Username dan password wajib diisi' }), {
@@ -122,10 +226,16 @@ export default {
         }
 
         const passwordHash = await sha256(password + 'posta_salt_2026');
+        // A SUPERADMIN can only authenticate from the central portal.  Store
+        // users remain constrained to the tenant resolved from their host.
+        const isAdminPortal = tenant_id === 'admin';
+        if (!tenant_id) return json({ error: 'Tenant login tidak ditemukan.' }, 400, corsHeaders);
         const user = await env.DB.prepare(
-          'SELECT id, tenant_id, username, full_name, role FROM users WHERE username = ? AND password_hash = ? AND tenant_id = ? AND is_active = 1'
+          isAdminPortal
+            ? "SELECT id, tenant_id, username, full_name, role FROM users WHERE username = ? AND password_hash = ? AND role IN ('SUPERADMIN', 'DEVELOPER') AND is_active = 1"
+            : 'SELECT id, tenant_id, username, full_name, role FROM users WHERE username = ? AND password_hash = ? AND tenant_id = ? AND is_active = 1'
         )
-          .bind(username, passwordHash, tenant_id)
+          .bind(...(isAdminPortal ? [username, passwordHash] : [username, passwordHash, tenant_id]))
           .first<{ id: string; tenant_id: string; username: string; full_name: string; role: string }>();
 
         if (!user) {
@@ -173,6 +283,13 @@ export default {
             status: 401,
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
           });
+        }
+
+        if (path.startsWith('/api/admin')) {
+          if (!authUser || !isPlatformAdmin(authUser.role)) {
+            return json({ error: 'Akses khusus Superadmin.' }, 403, corsHeaders);
+          }
+          return await handleAdminRoutes(request, env, corsHeaders, authUser, url);
         }
 
         if (path.startsWith('/api/products')) {

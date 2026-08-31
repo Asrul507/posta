@@ -1,4 +1,5 @@
 import { showToast, formatRupiah } from '../state.js';
+import { api } from '../api.js';
 
 let tenantListCache = [];
 
@@ -12,8 +13,7 @@ export async function loadAdminTenants() {
   grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-500 text-sm"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 block"></i> Memuat daftar toko...</div>';
 
   try {
-    const res = await fetch('/api/admin/tenants');
-    const result = await res.json();
+    const result = await api.get('/api/admin/tenants');
 
     if (result.success && result.data) {
       tenantListCache = result.data;
@@ -68,8 +68,7 @@ export async function loadAdminTenants() {
 // Fitur Superadmin Langsung Masuk ke Toko Manapun
 export async function impersonateStore(subdomain) {
   try {
-    const res = await fetch(`/api/admin/impersonate?subdomain=${subdomain}`);
-    const result = await res.json();
+    const result = await api.get(`/api/admin/impersonate?subdomain=${encodeURIComponent(subdomain)}`);
 
     if (result.success && result.token) {
       // Buka tab toko baru dengan SSO Token
@@ -91,8 +90,7 @@ export async function loadAdminUsersList() {
   if (!tbody) return;
 
   try {
-    const res = await fetch('/api/admin/users');
-    const result = await res.json();
+    const result = await api.get('/api/admin/users');
 
     if (result.success && result.data) {
       if (result.data.length === 0) {
@@ -161,12 +159,7 @@ export async function submitCreateUserAdmin() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
 
   try {
-    const res = await fetch('/api/admin/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id, name, username, password, role })
-    });
-    const result = await res.json();
+    const result = await api.post('/api/admin/users', { tenant_id, name, username, password, role });
 
     if (result.success) {
       showToast(result.message);
@@ -208,12 +201,7 @@ export async function submitCreateTenant() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('/api/admin/tenants', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subdomain, name, address })
-    });
-    const result = await res.json();
+    const result = await api.post('/api/admin/tenants', { subdomain, name, address });
 
     if (result.success) {
       showToast(result.message);
