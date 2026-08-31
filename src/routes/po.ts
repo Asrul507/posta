@@ -4,7 +4,7 @@ export async function handlePORoutes(
   request: Request,
   env: Env,
   corsHeaders: Record<string, string>,
-  authUser: UserPayload | null
+  authUser?: UserPayload | null
 ): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -35,7 +35,7 @@ export async function handlePORoutes(
       totalAmount += item.quantity * item.cost_price;
     }
 
-    const statements: D1PreparedStatement[] = [
+    const statements: any[] = [
       env.DB.prepare(`
         INSERT INTO purchase_orders (
           id, tenant_id, po_number, supplier_id, user_id,
@@ -64,7 +64,6 @@ export async function handlePORoutes(
         `).bind(poItemId, poId, item.product_id, item.quantity, item.cost_price, subtotal)
       );
 
-      // Ambil stok awal sebelum update
       const currentProduct = await env.DB.prepare(
         'SELECT stock FROM products WHERE id = ? AND tenant_id = ?'
       ).bind(item.product_id, tenant_id).first<{ stock: number }>();
@@ -72,7 +71,6 @@ export async function handlePORoutes(
       const stockBefore = currentProduct?.stock || 0;
       const stockAfter = stockBefore + item.quantity;
 
-      // Update stok & harga modal produk
       statements.push(
         env.DB.prepare(`
           UPDATE products
@@ -81,7 +79,6 @@ export async function handlePORoutes(
         `).bind(item.quantity, item.cost_price, item.product_id, tenant_id)
       );
 
-      // Catat mutasi stok dengan stock_before dan stock_after yang tepat
       const movementId = 'MOV-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
       statements.push(
         env.DB.prepare(`
