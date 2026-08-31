@@ -26,15 +26,14 @@ const STATIC_ASSETS = [
   '/components/view-pos.html',
   '/components/view-products.html',
   '/components/view-reports.html',
-  '/components/view-admin.html',
-  '/components/view-history.html'
+  '/components/view-admin.html'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
-    })
+    }).catch(err => console.warn('Cache addAll warning:', err))
   );
   self.skipWaiting();
 });
@@ -53,23 +52,13 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Jangan cache request API, serahkan ke network / fallback IndexedDB
   if (url.pathname.startsWith('/api/')) {
     return;
   }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-        }
-        return networkResponse;
-      });
+      return cachedResponse || fetch(event.request);
     })
   );
 });
