@@ -1,58 +1,36 @@
-import { loadComponent } from './loader.js';
-import { toggleSidebar, switchView, toggleMobileCartDrawer } from './navigation.js';
-import * as pos from './views/pos.js';
-import * as checkout from './views/checkout.js';
-import * as po from './views/po.js';
-import * as reports from './views/reports.js';
-import * as scanner from './scanner.js';
-import * as admin from './views/admin.js';
-import * as auth from './views/auth.js';
-import * as shifts from './views/shifts.js';
+import { loadComponents } from './loader.js';
+import { initAuth } from './views/auth.js';
+import { initNavigation } from './navigation.js';
+import { initPosEvents } from './views/pos.js';
+import { initCheckoutEvents } from './views/checkout.js';
+import { initShiftsEvents } from './views/shifts.js';
 
-// 1. Daftarkan semua modul ke window
-Object.assign(window, {
-  toggleSidebar,
-  switchView,
-  toggleMobileCartDrawer,
-  ...pos,
-  ...checkout,
-  ...po,
-  ...reports,
-  ...scanner,
-  ...admin,
-  ...auth,
-  ...shifts
-});
-
-// 2. Inisialisasi: Tunggu komponen HTML termuat SEMPURNA sebelum menjalankan logic
-window.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async () => {
   try {
-    await Promise.all([
-      loadComponent('comp-login', '/components/login.html'),
-      loadComponent('comp-sidebar', '/components/sidebar.html'),
-      loadComponent('comp-header', '/components/header.html'),
-      loadComponent('comp-view-pos', '/components/view-pos.html'),
-      loadComponent('comp-view-products', '/components/view-products.html'),
-      loadComponent('comp-view-history', '/components/view-history.html'),
-      loadComponent('comp-view-reports', '/components/view-reports.html'),
-      loadComponent('comp-view-admin', '/components/view-admin.html'),
-      loadComponent('comp-modals', '/components/modals.html')
-    ]);
-  } catch (err) {
-    console.error("Gagal memuat komponen HTML:", err);
-  }
+    // 1. Muat komponen HTML secara aman
+    await loadComponents();
 
-  // Jalankan inisialisasi kasir & scanner hardware
-  try {
-    pos.loadProducts();
-    scanner.initHardwareScannerListener();
-  } catch (e) {
-    console.error("Init POS Error:", e);
-  }
+    // 2. Inisialisasi modul UI & Autentikasi
+    initAuth();
+    initNavigation();
+    initPosEvents();
+    initCheckoutEvents();
+    initShiftsEvents();
 
-  // Pasang event listener search input
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    searchInput.addEventListener('input', pos.renderProductGrid);
+    console.log('Posta POS App initialized successfully.');
+  } catch (error) {
+    console.error('Inisialisasi aplikasi gagal:', error);
+    // Tampilkan pesan error ramah jika terjadi kendala loading
+    const appContainer = document.getElementById('app') || document.body;
+    const errorBox = document.createElement('div');
+    errorBox.style.cssText = 'padding: 20px; color: #ef4444; font-family: sans-serif; text-align: center;';
+    errorBox.innerHTML = `
+      <h3>Gagal memuat aplikasi</h3>
+      <p style="color: #64748b; font-size: 13px;">${error.message}</p>
+      <button onclick="localStorage.clear(); location.reload();" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+        Bersihkan Cache & Refresh
+      </button>
+    `;
+    appContainer.appendChild(errorBox);
   }
 });
