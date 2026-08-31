@@ -1,32 +1,35 @@
-import { state } from './state.js';
+// Base API Request Helper
+export async function apiRequest(endpoint, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(options.headers || {})
+  };
 
-export const API = {
-  async getProducts() {
-    const res = await fetch(`/api/products?tenant_id=${state.tenantId}`);
-    return res.json();
-  },
-  async checkout(payload) {
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+  try {
+    const response = await fetch(endpoint, {
+      ...options,
+      headers
     });
-    return res.json();
-  },
-  async submitPO(payload) {
-    const res = await fetch('/api/po/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return res.json();
-  },
-  async getTransactions() {
-    const res = await fetch(`/api/reports/transactions?tenant_id=${state.tenantId}`);
-    return res.json();
-  },
-  async getPOHistory() {
-    const res = await fetch(`/api/reports/po?tenant_id=${state.tenantId}`);
-    return res.json();
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`API Error on ${endpoint}:`, error);
+    throw error;
   }
+}
+
+// Wrapper object api untuk method GET, POST, PUT, DELETE
+export const api = {
+  get: (url, options = {}) => apiRequest(url, { method: 'GET', ...options }),
+  post: (url, body, options = {}) => apiRequest(url, { method: 'POST', body: JSON.stringify(body), ...options }),
+  put: (url, body, options = {}) => apiRequest(url, { method: 'PUT', body: JSON.stringify(body), ...options }),
+  delete: (url, options = {}) => apiRequest(url, { method: 'DELETE', ...options })
 };
