@@ -232,17 +232,28 @@ export default {
         if (!tenant_id) return json({ error: 'Tenant login tidak ditemukan.' }, 400, corsHeaders);
         const user = await env.DB.prepare(
           isAdminPortal
-            ? "SELECT id, tenant_id, username, full_name, role FROM users WHERE username = ? AND password_hash = ? AND role IN ('SUPERADMIN', 'DEVELOPER') AND is_active = 1"
-            : 'SELECT id, tenant_id, username, full_name, role FROM users WHERE username = ? AND password_hash = ? AND tenant_id = ? AND is_active = 1'
+            ? "SELECT id, tenant_id, username, full_name, role, password_hash FROM users WHERE username = ? AND role IN ('SUPERADMIN', 'DEVELOPER') AND is_active = 1"
+            : 'SELECT id, tenant_id, username, full_name, role, password_hash FROM users WHERE username = ? AND tenant_id = ? AND is_active = 1'
         )
-          .bind(...(isAdminPortal ? [username, passwordHash] : [username, passwordHash, tenant_id]))
-          .first<{ id: string; tenant_id: string; username: string; full_name: string; role: string }>();
+          .bind(...(isAdminPortal ? [username] : [username, tenant_id]))
+          .first<{ id: string; tenant_id: string; username: string; full_name: string; role: string; password_hash: string }>();
 
-        if (!user) {
+        // Existing installations may have been created before the application
+        // added its salt.  Accept the former SHA-256 representation once so
+        // those accounts are not locked out, then upgrade it transparently.
+        const legacyPasswordHash = await sha256(password);
+        const passwordMatches = user && [passwordHash, legacyPasswordHash, password].includes(user.password_hash);
+        if (!passwordMatches || !user) {
           return new Response(JSON.stringify({ error: 'Username atau password salah' }), {
             status: 401,
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
           });
+        }
+
+        if (user.password_hash !== passwordHash) {
+          await env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+            .bind(passwordHash, user.id)
+            .run();
         }
 
         const token = await createJWT(
