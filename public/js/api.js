@@ -26,10 +26,13 @@ export async function apiRequest(endpoint, options = {}) {
   }
 }
 
-// Wrapper object api untuk method GET, POST, PUT, DELETE
+// Wrapper Object untuk method HTTP
 export const api = {
   get: (url, options = {}) => apiRequest(url, { method: 'GET', ...options }),
   post: (url, body, options = {}) => apiRequest(url, { method: 'POST', body: JSON.stringify(body), ...options }),
   put: (url, body, options = {}) => apiRequest(url, { method: 'PUT', body: JSON.stringify(body), ...options }),
   delete: (url, options = {}) => apiRequest(url, { method: 'DELETE', ...options })
 };
+
+// Export alias huruf besar untuk mendukung impor { API } di pos.js
+export const API = api;
