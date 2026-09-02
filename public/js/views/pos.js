@@ -176,7 +176,7 @@ export function renderProductTable() {
   );
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
     return;
   }
 
@@ -191,6 +191,11 @@ export function renderProductTable() {
         <span class="px-2 py-0.5 rounded-full font-bold ${p.stock <= 3 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
           ${p.stock} ${p.unit || 'pcs'}
         </span>
+      </td>
+      <td class="py-2.5 px-3 text-center">
+        <button onclick="window.openEditProductModal('${p.id}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg text-[11px] font-bold text-slate-700">
+          <i class="fa-solid fa-pen"></i> Edit
+        </button>
       </td>
     </tr>
   `).join('');

@@ -37,27 +37,46 @@ export async function handleEmployeesRoutes(
     return json({ success: false, error: 'Akun ini tidak terhubung ke toko manapun.' }, 400, corsHeaders);
   }
 
+  // Variasi tenant_id yang dianggap satu toko: UUID resmi tenants.id DAN (jika ada)
+  // teks subdomainnya. Menjaga agar karyawan lama yang belum sempat login ulang
+  // (masih tersimpan dengan tenant_id versi lama) tetap muncul di daftar.
+  const variants = Array.from(new Set([tenant_id, authUser.tenant_subdomain].filter(Boolean))) as string[];
+  const variantPlaceholders = variants.map(() => '?').join(', ');
+
   // Superadmin/developer yang sedang mengakses lewat impersonasi toko
   // diperlakukan setara OWNER (akses penuh) selama sesi tersebut.
   const actorRank = isPlatformAdmin(authUser.role) ? ROLE_RANK.OWNER : (ROLE_RANK[authUser.role] || 0);
   const isFullAccess = authUser.role === 'OWNER' || isPlatformAdmin(authUser.role);
 
-  // 1. DAFTAR KARYAWAN TOKO INI
+  // 1. DAFTAR KARYAWAN TOKO INI (Kasir hanya melihat akunnya sendiri)
   if (path === '/api/employees' && request.method === 'GET') {
+    if (authUser.role === 'CASHIER') {
+      const self = await env.DB.prepare(
+        `SELECT id, full_name, username, role, is_active, created_at FROM users WHERE id = ? AND tenant_id IN (${variantPlaceholders})`
+      )
+        .bind(authUser.id, ...variants)
+        .first();
+      return json({ success: true, data: self ? [self] : [], self_only: true }, 200, corsHeaders);
+    }
+
     const { results } = await env.DB.prepare(
       `SELECT id, full_name, username, role, is_active, created_at
        FROM users
-       WHERE tenant_id = ?
+       WHERE tenant_id IN (${variantPlaceholders})
        ORDER BY CASE role WHEN 'OWNER' THEN 1 WHEN 'ADMIN' THEN 2 WHEN 'CASHIER' THEN 3 ELSE 4 END, full_name`
     )
-      .bind(tenant_id)
+      .bind(...variants)
       .all();
 
     return json({ success: true, data: results || [] }, 200, corsHeaders);
   }
 
-  // 2. TAMBAH KARYAWAN BARU
+  // 2. TAMBAH KARYAWAN BARU (Kasir tidak boleh menambah akun)
   if (path === '/api/employees' && request.method === 'POST') {
+    if (authUser.role === 'CASHIER') {
+      return json({ success: false, error: 'Kasir tidak memiliki izin menambah akun karyawan.' }, 403, corsHeaders);
+    }
+
     const body = (await request.json()) as {
       full_name?: string;
       username?: string;
@@ -86,8 +105,8 @@ export async function handleEmployeesRoutes(
       );
     }
 
-    const existing = await env.DB.prepare('SELECT id FROM users WHERE tenant_id = ? AND username = ?')
-      .bind(tenant_id, username)
+    const existing = await env.DB.prepare(`SELECT id FROM users WHERE tenant_id IN (${variantPlaceholders}) AND username = ?`)
+      .bind(...variants, username)
       .first();
     if (existing) {
       return json({ success: false, error: 'Username sudah digunakan di toko ini.' }, 409, corsHeaders);
@@ -96,6 +115,7 @@ export async function handleEmployeesRoutes(
     const passwordHash = await sha256(password + 'posta_salt_2026');
     const id = crypto.randomUUID();
 
+    // Karyawan baru selalu ditulis dengan tenant_id kanonik (UUID resmi tenants.id).
     await env.DB.prepare(
       'INSERT INTO users (id, tenant_id, full_name, username, password_hash, role, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)'
     )
@@ -110,12 +130,40 @@ export async function handleEmployeesRoutes(
   if (editMatch && request.method === 'PUT') {
     const targetId = editMatch[1];
 
-    const target = await env.DB.prepare('SELECT id, role FROM users WHERE id = ? AND tenant_id = ?')
-      .bind(targetId, tenant_id)
-      .first<{ id: string; role: string }>();
+    const target = await env.DB.prepare(`SELECT id, role, tenant_id FROM users WHERE id = ? AND tenant_id IN (${variantPlaceholders})`)
+      .bind(targetId, ...variants)
+      .first<{ id: string; role: string; tenant_id: string }>();
 
     if (!target) {
       return json({ success: false, error: 'Karyawan tidak ditemukan.' }, 404, corsHeaders);
+    }
+
+    const body = (await request.json()) as {
+      full_name?: string;
+      username?: string;
+      password?: string;
+      role?: string;
+      is_active?: number | boolean;
+    };
+
+    // Kasir hanya boleh mengganti password akunnya sendiri, tidak bisa ubah data lain
+    // (nama, username, role, status) baik untuk dirinya sendiri maupun orang lain.
+    if (authUser.role === 'CASHIER') {
+      if (targetId !== authUser.id) {
+        return json({ success: false, error: 'Kasir hanya bisa mengubah akunnya sendiri.' }, 403, corsHeaders);
+      }
+      if (!body.password) {
+        return json({ success: false, error: 'Kasir hanya bisa mengganti password. Isi password baru.' }, 400, corsHeaders);
+      }
+      if (body.full_name || body.username || body.role || body.is_active !== undefined) {
+        return json({ success: false, error: 'Kasir hanya diizinkan mengubah password akunnya sendiri.' }, 403, corsHeaders);
+      }
+
+      await env.DB.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+        .bind(await sha256(body.password + 'posta_salt_2026'), targetId)
+        .run();
+
+      return json({ success: true, message: 'Password berhasil diperbarui.' }, 200, corsHeaders);
     }
 
     const targetRank = ROLE_RANK[target.role] || 0;
@@ -129,14 +177,6 @@ export async function handleEmployeesRoutes(
         corsHeaders
       );
     }
-
-    const body = (await request.json()) as {
-      full_name?: string;
-      username?: string;
-      password?: string;
-      role?: string;
-      is_active?: number | boolean;
-    };
 
     const updates: string[] = [];
     const binds: unknown[] = [];
@@ -172,15 +212,22 @@ export async function handleEmployeesRoutes(
       binds.push(body.is_active ? 1 : 0);
     }
 
+    // Rapikan otomatis: kalau karyawan ini masih memakai tenant_id versi lama
+    // (mis. teks subdomain), samakan ke UUID resmi begitu datanya diedit.
+    if (target.tenant_id !== tenant_id) {
+      updates.push('tenant_id = ?');
+      binds.push(tenant_id);
+    }
+
     if (updates.length === 0) {
       return json({ success: false, error: 'Tidak ada perubahan data yang dikirim.' }, 400, corsHeaders);
     }
 
     updates.push("updated_at = datetime('now')");
-    binds.push(targetId, tenant_id);
+    binds.push(targetId);
 
     try {
-      await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ? AND tenant_id = ?`)
+      await env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`)
         .bind(...binds)
         .run();
     } catch (e) {

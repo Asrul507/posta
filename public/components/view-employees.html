@@ -4,11 +4,13 @@
       <div>
         <h2 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
           <i class="fa-solid fa-users-gear text-emerald-600"></i>
-          <span>Manajemen Karyawan</span>
+          <span class="role-admin-only">Manajemen Karyawan</span>
+          <span class="role-cashier-only hidden">Akun Saya</span>
         </h2>
-        <span class="text-[11px] text-slate-500">Kelola akun Owner, Admin, dan Kasir untuk toko ini</span>
+        <span class="text-[11px] text-slate-500 role-admin-only">Kelola akun Owner, Admin, dan Kasir untuk toko ini</span>
+        <span class="text-[11px] text-slate-500 role-cashier-only hidden">Anda hanya bisa mengganti password akun Anda sendiri</span>
       </div>
-      <button onclick="window.openAddEmployeeModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+      <button onclick="window.openAddEmployeeModal()" class="role-admin-only px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
         <i class="fa-solid fa-user-plus"></i>
         <span>Tambah Karyawan</span>
       </button>
@@ -45,21 +47,21 @@
 
     <form onsubmit="event.preventDefault(); window.submitEmployeeForm();" class="space-y-3 text-xs">
       <input type="hidden" id="employee-id-input" />
-      <div>
+      <div id="employee-fullname-row">
         <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Nama Lengkap</label>
-        <input id="employee-fullname-input" type="text" required placeholder="Contoh: Siti Rahma" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500" />
+        <input id="employee-fullname-input" type="text" placeholder="Contoh: Siti Rahma" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500" />
       </div>
-      <div>
+      <div id="employee-username-row">
         <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Username</label>
-        <input id="employee-username-input" type="text" required autocomplete="off" placeholder="username_karyawan" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono focus:outline-none focus:border-emerald-500" />
+        <input id="employee-username-input" type="text" autocomplete="off" placeholder="username_karyawan" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 font-mono focus:outline-none focus:border-emerald-500" />
       </div>
       <div>
         <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Password</label>
         <input id="employee-password-input" type="password" autocomplete="new-password" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500" />
       </div>
-      <div>
+      <div id="employee-role-row">
         <label class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Role / Hak Akses</label>
-        <select id="employee-role-input" required class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500">
+        <select id="employee-role-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500">
           <option value="CASHIER">Kasir</option>
         </select>
       </div>

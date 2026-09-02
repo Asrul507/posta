@@ -6,6 +6,10 @@ export interface Env {
 export interface UserPayload {
   id: string;
   tenant_id: string;
+  // Subdomain toko (mis. "berkah") — disimpan di JWT agar semua route bisa
+  // tetap cocok dengan data lama yang mungkin memakai teks subdomain sebagai
+  // tenant_id, bukan hanya UUID resmi tenants.id.
+  tenant_subdomain?: string;
   username: string;
   role: string;
 }

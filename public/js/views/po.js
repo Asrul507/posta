@@ -34,7 +34,8 @@ export function handlePOSearch() {
   const input = document.getElementById('po-search-input');
   if (!input) return;
 
-  const query = input.value.trim().toLowerCase();
+  const query = input.value.trim();
+  const queryLower = query.toLowerCase();
   if (!query) {
     showToast('Ketik nama atau barcode barang!', 'error');
     return;
@@ -42,8 +43,8 @@ export function handlePOSearch() {
 
   // Cari produk di state
   const product = state.products.find(p => 
-    (p.barcode && p.barcode.toLowerCase() === query) ||
-    p.name.toLowerCase().includes(query) ||
+    (p.barcode && p.barcode.toLowerCase() === queryLower) ||
+    p.name.toLowerCase().includes(queryLower) ||
     p.id === query
   );
 
@@ -52,7 +53,14 @@ export function handlePOSearch() {
     input.value = '';
     input.focus();
   } else {
-    showToast(`Barang '${query}' tidak ditemukan di master produk!`, 'error');
+    // Barang belum terdaftar: langsung buka form tambah produk baru,
+    // barcode/nama yang diketik dipakai sebagai isian awal.
+    if (typeof window.openAddProductModal === 'function') {
+      window.openAddProductModal('PO', query);
+    } else {
+      showToast(`Barang '${query}' tidak ditemukan di master produk!`, 'error');
+    }
+    input.value = '';
   }
 }
 
@@ -71,7 +79,12 @@ export function handleAddPOByBarcode(barcode) {
       lastItemEl.innerHTML = `<span class="text-emerald-400 font-bold">${product.name}</span> (Masuk PO)`;
     }
   } else {
-    showToast(`Barcode ${barcode} tidak ada di database master!`, 'error');
+    // Barcode belum terdaftar: buka form tambah produk baru dengan barcode terisi otomatis.
+    if (typeof window.openAddProductModal === 'function') {
+      window.openAddProductModal('PO', barcode);
+    } else {
+      showToast(`Barcode ${barcode} tidak ada di database master!`, 'error');
+    }
   }
 }
 

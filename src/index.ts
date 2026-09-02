@@ -154,6 +154,7 @@ async function handleAdminRoutes(
     const token = await createJWT({
       ...authUser,
       tenant_id: tenant.id,
+      tenant_subdomain: tenant.subdomain,
       exp: Math.floor(Date.now() / 1000) + 15 * 60,
     }, getJwtSecret(env));
     const targetUrl = `${url.protocol}//${tenant.subdomain}.gpro.my.id/?sso_token=${encodeURIComponent(token)}`;
@@ -223,38 +224,57 @@ export default {
       if (path === '/api/login' && request.method === 'POST') {
         const body = (await request.json()) as { username?: string; password?: string; tenant_id?: string };
         const { username, password } = body;
-        const tenant_id = body.tenant_id;
 
         if (!username || !password) {
-          return new Response(JSON.stringify({ error: 'Username dan password wajib diisi' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-          });
+          return json({ error: 'Username dan password wajib diisi' }, 400, corsHeaders);
         }
 
         const passwordHash = await sha256(password + 'posta_salt_2026');
-        // A SUPERADMIN can only authenticate from the central portal.  Store
-        // users remain constrained to the tenant resolved from their host.
-        const isAdminPortal = tenant_id === 'admin';
-        if (!tenant_id) return json({ error: 'Tenant login tidak ditemukan.' }, 400, corsHeaders);
-        const user = await env.DB.prepare(
-          isAdminPortal
-            ? "SELECT id, tenant_id, username, full_name, role, password_hash FROM users WHERE username = ? AND role IN ('SUPERADMIN', 'DEVELOPER') AND is_active = 1"
-            : 'SELECT id, tenant_id, username, full_name, role, password_hash FROM users WHERE username = ? AND tenant_id = ? AND is_active = 1'
-        )
-          .bind(...(isAdminPortal ? [username] : [username, tenant_id]))
-          .first<{ id: string; tenant_id: string; username: string; full_name: string; role: string; password_hash: string }>();
-
-        // Existing installations may have been created before the application
-        // added its salt.  Accept the former SHA-256 representation once so
-        // those accounts are not locked out, then upgrade it transparently.
+        // Instalasi lama mungkin dibuat sebelum aplikasi memakai salt, atau bahkan
+        // menyimpan password apa adanya. Terima dulu bentuk lama ini supaya akun
+        // tidak terkunci, lalu upgrade otomatis ke hash bersalt begitu berhasil login.
         const legacyPasswordHash = await sha256(password);
+
+        // SUPERADMIN/DEVELOPER hanya bisa login dari portal pusat (host admin).
+        const isAdminPortal = body.tenant_id === 'admin' || isAdminHost(url.hostname);
+
+        let user:
+          | { id: string; tenant_id: string; username: string; full_name: string; role: string; password_hash: string }
+          | null = null;
+        let resolvedTenant: { id: string; subdomain: string } | null = null;
+
+        if (isAdminPortal) {
+          user = await env.DB.prepare(
+            "SELECT id, tenant_id, username, full_name, role, password_hash FROM users WHERE username = ? AND role IN ('SUPERADMIN', 'DEVELOPER') AND is_active = 1"
+          )
+            .bind(username)
+            .first();
+        } else {
+          // Toko SELALU ditentukan dari subdomain URL yang sebenarnya diakses
+          // (bukan dari input client), lalu username dicocokkan ke tenant_id
+          // berupa UUID resmi ATAU teks subdomain — supaya tetap kompatibel
+          // dengan data lama yang mungkin memakai subdomain sebagai tenant_id.
+          const subdomain = url.hostname.split('.')[0].toLowerCase();
+          resolvedTenant = await env.DB.prepare(
+            'SELECT id, subdomain FROM tenants WHERE subdomain = ? AND is_active = 1'
+          )
+            .bind(subdomain)
+            .first<{ id: string; subdomain: string }>();
+
+          if (!resolvedTenant) {
+            return json({ error: 'Toko untuk subdomain ini tidak ditemukan atau tidak aktif.' }, 404, corsHeaders);
+          }
+
+          user = await env.DB.prepare(
+            'SELECT id, tenant_id, username, full_name, role, password_hash FROM users WHERE username = ? AND (tenant_id = ? OR tenant_id = ?) AND is_active = 1'
+          )
+            .bind(username, resolvedTenant.id, resolvedTenant.subdomain)
+            .first();
+        }
+
         const passwordMatches = user && [passwordHash, legacyPasswordHash, password].includes(user.password_hash);
         if (!passwordMatches || !user) {
-          return new Response(JSON.stringify({ error: 'Username atau password salah' }), {
-            status: 401,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders },
-          });
+          return json({ error: 'Username atau password salah' }, 401, corsHeaders);
         }
 
         if (user.password_hash !== passwordHash) {
@@ -263,10 +283,20 @@ export default {
             .run();
         }
 
+        // Rapikan otomatis: jika tenant_id user ini tersimpan sebagai teks subdomain
+        // (bukan UUID resmi tenants.id), samakan sekali agar konsisten ke depannya.
+        if (resolvedTenant && user.tenant_id !== resolvedTenant.id) {
+          await env.DB.prepare('UPDATE users SET tenant_id = ? WHERE id = ?')
+            .bind(resolvedTenant.id, user.id)
+            .run();
+          user.tenant_id = resolvedTenant.id;
+        }
+
         const token = await createJWT(
           {
             id: user.id,
             tenant_id: user.tenant_id,
+            tenant_subdomain: resolvedTenant?.subdomain,
             username: user.username,
             role: user.role,
             exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
@@ -274,8 +304,8 @@ export default {
           getJwtSecret(env)
         );
 
-        return new Response(
-          JSON.stringify({
+        return json(
+          {
             token,
             user: {
               id: user.id,
@@ -284,8 +314,9 @@ export default {
               full_name: user.full_name,
               role: user.role,
             },
-          }),
-          { headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          },
+          200,
+          corsHeaders
         );
       }
 
@@ -311,6 +342,11 @@ export default {
         }
 
         if (path.startsWith('/api/products')) {
+          // Ubah & hapus produk khusus Owner/Admin. Lihat & tambah produk baru
+          // (termasuk quick-add saat barcode belum ada di form barang masuk) boleh semua role toko.
+          if ((request.method === 'PUT' || request.method === 'DELETE') && !isTenantManager(authUser?.role)) {
+            return json({ error: 'Ubah/hapus produk khusus Owner/Admin.' }, 403, corsHeaders);
+          }
           return await (handleProductsRoutes as any)(request, env, corsHeaders, authUser);
         }
         // Transaksi, buka/tutup shift, dan input barang masuk (PO) boleh diakses semua role toko,
@@ -338,8 +374,10 @@ export default {
           return await (handleReportsRoutes as any)(request, env, corsHeaders, authUser);
         }
         if (path.startsWith('/api/employees')) {
-          if (!isTenantManager(authUser?.role)) {
-            return json({ error: 'Fitur manajemen karyawan khusus Owner/Admin.' }, 403, corsHeaders);
+          // Semua role toko boleh akses endpoint karyawan; pembatasan detail
+          // (Kasir hanya akun sendiri & hanya password) ditangani di dalam handler.
+          if (!authUser?.tenant_id && !isPlatformAdmin(authUser?.role)) {
+            return json({ error: 'Akun ini tidak terhubung ke toko manapun.' }, 400, corsHeaders);
           }
           return await handleEmployeesRoutes(request, env, corsHeaders, authUser as UserPayload);
         }
