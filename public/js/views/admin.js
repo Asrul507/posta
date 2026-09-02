@@ -30,7 +30,7 @@ export async function loadAdminTenants() {
             <div class="flex items-start justify-between gap-2">
               <div>
                 <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-400">
-                  ${t.subdomain}.gpro.my.id
+                  ${t.subdomain}.posta.gpro.my.id
                 </span>
                 <h3 class="text-base font-bold text-white mt-1">${t.name}</h3>
               </div>
@@ -104,7 +104,7 @@ export async function loadAdminUsersList() {
           <td class="py-3 px-4 font-mono text-slate-400">${u.username}</td>
           <td class="py-3 px-4">
             <span class="text-indigo-400 font-medium">${u.tenant_name}</span>
-            <span class="text-[10px] text-slate-500 block font-mono">(${u.subdomain}.gpro.my.id)</span>
+            <span class="text-[10px] text-slate-500 block font-mono">(${u.subdomain}.posta.gpro.my.id)</span>
           </td>
           <td class="py-3 px-4">
             <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold ${
@@ -134,7 +134,7 @@ function populateTenantDropdown(tenants) {
   select.innerHTML = `
     <option value="">-- Pilih Toko Tujuan --</option>
     <option value="SUPERADMIN">⭐ SUPERADMIN (Pusat / Developer)</option>
-    ${tenants.map(t => `<option value="${t.id}">${t.name} (${t.subdomain}.gpro.my.id)</option>`).join('')}
+    ${tenants.map(t => `<option value="${t.id}">${t.name} (${t.subdomain}.posta.gpro.my.id)</option>`).join('')}
   `;
 }
 

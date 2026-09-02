@@ -157,7 +157,7 @@ async function handleAdminRoutes(
       tenant_subdomain: tenant.subdomain,
       exp: Math.floor(Date.now() / 1000) + 15 * 60,
     }, getJwtSecret(env));
-    const targetUrl = `${url.protocol}//${tenant.subdomain}.gpro.my.id/?sso_token=${encodeURIComponent(token)}`;
+    const targetUrl = `${url.protocol}//${tenant.subdomain}.posta.gpro.my.id/?sso_token=${encodeURIComponent(token)}`;
     return json({ success: true, token, target_url: targetUrl }, 200, corsHeaders);
   }
 
